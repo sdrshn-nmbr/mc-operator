@@ -211,11 +211,20 @@ Please help me log in to Gusto and navigate to a specific tax form. Follow these
    - This tool will automatically check all tabs, find the S3 URL, and download the file in one step
    - Report the result to the user
 
+8. **Navigate to Employee summary page**
+   - Navigate to reports by clicking on the "Reports" link/button in the left sidebar
+   - In the page, find the employee summary link/button and click it - the selector will be something like "View Report" right under the text "Employee summary"
+   - You will be taken to a page where youll see a "Generate report" button - click it
+   - Then there will be a loading page - you will need to wait for the report to load
+   - Then there will be a "Download CSV" button - instead of clicking it, find the s3 url in the DOM and download it using the puppeteer_download_s3_file tool
+
 ### Important Notes
 - The form viewer page will automatically redirect to the S3 URL in a new tab
 - The puppeteer_check_tabs_for_s3 tool handles everything including downloading
 - S3 URLs have tokens that expire within 30 seconds, so the automatic download is crucial
 - The file will be saved to the server's filesystem with the specified filename
+- Simulate a human user when typing in stuff like emails, passwords, etc.
+- Assume you are operating in a slow network environment, so make use of waitFor's and domcontentloaded's
 `;
 
   let messages: any[] = [{ role: "user", content: userPrompt }];
@@ -227,7 +236,8 @@ Please help me log in to Gusto and navigate to a specific tax form. Follow these
     console.log(`Iteration ${iteration}: Processing with LLM...`);
 
     const response = await anthropic.messages.create({
-      model: "claude-3-7-sonnet-latest",
+      // model: "claude-3-7-sonnet-latest",
+      model: "claude-3-5-haiku-latest",
       system: systemPrompt,
       max_tokens: 1000,
       messages,

@@ -1,0 +1,105 @@
+# Generated Prompt
+# Original Command: go to amazon.com and buy me the highest rates android phone based on brands you know are good for android phones
+# Task Type: shopping
+# Generated: 2025-03-10T04:44:06.763Z
+# ===================================
+
+# Amazon Android Phone Purchase Automation
+
+Here's a detailed step-by-step guide to automate purchasing a highly-rated Android phone from Amazon.com:
+
+## 1. Navigate to Amazon.com
+
+```javascript
+await puppeteer_navigate('https://www.amazon.com');
+```
+
+## 2. Handle Initial Popups and Cookies
+
+```javascript
+// Wait for and close location/cookie popups if they appear
+try {
+  await puppeteer_waitForSelector('#sp-cc-accept', { timeout: 5000 });
+  await puppeteer_click('#sp-cc-accept');
+} catch (error) {
+  console.log('No cookie consent popup detected');
+}
+
+// Handle delivery location popup if it appears
+try {
+  await puppeteer_waitForSelector('#glow-ingress-block', { timeout: 5000 });
+  await puppeteer_click('#glow-ingress-block');
+  await puppeteer_waitForSelector('#GLUXZipUpdateInput', { timeout: 5000 });
+  await puppeteer_fill('#GLUXZipUpdateInput', '10001'); // Example ZIP code
+  await puppeteer_click('#GLUXZipUpdate');
+  await puppeteer_click('.a-popover-footer .a-button-primary');
+} catch (error) {
+  console.log('No location popup or already set');
+}
+```
+
+## 3. Search for Android Phones
+
+```javascript
+// Search for high-rated Android phones
+await puppeteer_waitForSelector('#twotabsearchtextbox');
+await puppeteer_fill('#twotabsearchtextbox', 'best android phone samsung google pixel');
+await puppeteer_click('#nav-search-submit-button');
+```
+
+## 4. Filter for Highly Rated Phones
+
+```javascript
+// Wait for search results to load
+await puppeteer_waitForSelector('.s-result-list');
+
+// Filter for 4+ star ratings if available
+try {
+  await puppeteer_waitForSelector('section[aria-label="4 Stars & Up"]', { timeout: 5000 });
+  await puppeteer_click('section[aria-label="4 Stars & Up"] a');
+} catch (error) {
+  console.log('Star rating filter not available, continuing with search results');
+}
+
+// Sort by customer reviews if available
+try {
+  await puppeteer_waitForSelector('#s-result-sort-select', { timeout: 5000 });
+  await puppeteer_click('#s-result-sort-select');
+  await puppeteer_waitForSelector('a[aria-label="Avg. Customer Review"]');
+  await puppeteer_click('a[aria-label="Avg. Customer Review"]');
+} catch (error) {
+  console.log('Sort options not available or already sorted');
+}
+```
+
+## 5. Find and Select the Best Android Phone
+
+```javascript
+// Use JavaScript to identify the highest-rated Android phone from top brands
+await puppeteer_evaluate(`
+  // List of preferred Android phone brands
+  const preferredBrands = ['Samsung', 'Google', 'Pixel', 'OnePlus', 'Motorola'];
+  
+  // Get all product items
+  const productItems = Array.from(document.querySelectorAll('.s-result-item[data-component-type="s-search-result"]'));
+  
+  // Filter for products that match our criteria
+  const validProducts = productItems.filter(item => {
+    // Check if it's an actual product (not a sponsored item or ad)
+    if (!item.querySelector('.a-price') || !item.querySelector('.a-link-normal.s-underline-text')) return false;
+    
+    // Get product title
+    const title = item.querySelector('h2')?.textContent.toLowerCase() || '';
+    
+    // Check if it's a phone from a preferred brand
+    const isPreferredBrand = preferredBrands.some(brand => 
+      title.includes(brand.toLowerCase())
+    );
+    
+    // Check if it's an Android phone (exclude iPhones)
+    const isAndroidPhone = title.includes('phone') && !title.includes('iphone');
+    
+    return isPreferredBrand && isAndroidPhone;
+  });
+  
+  // If we found vali

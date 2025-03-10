@@ -1,0 +1,23 @@
+I need to purchase {{item}} from {{store}}. 
+
+Please provide detailed step-by-step instructions for automating this purchase, including:
+
+1. Navigating to the {{store}} website
+2. Searching for {{item}}
+3. Selecting the correct product from search results
+4. Adding it to cart
+5. Proceeding to checkout
+6. Filling out shipping and payment information (using placeholders for sensitive data)
+7. Completing the order or stopping before final submission
+
+Consider these important aspects:
+- Handling cookie notices and popups that might appear
+- Different website layouts and search functionality
+- Product variations (size, color, quantity)
+- Multi-step checkout processes
+- Login requirements or guest checkout options
+- Mobile vs. desktop site differences
+
+Provide specific selectors for each step, with alternate approaches if primary selectors fail.
+Include JavaScript evaluation scripts to help identify elements when needed.
+Indicate points where human verification might be needed before proceeding. 

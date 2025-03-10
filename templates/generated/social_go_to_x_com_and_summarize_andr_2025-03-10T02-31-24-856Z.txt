@@ -1,0 +1,105 @@
+# Generated Prompt
+# Original Command: go to x.com and summarize andrej karpathys first post
+# Task Type: social
+# Generated: 2025-03-10T02:31:24.857Z
+# ===================================
+
+# Step-by-Step Instructions for Summarizing Andrej Karpathy's First Post on X.com
+
+## 1. Navigate to X.com
+
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+## 2. Handle Cookie Consent and Initial Popups
+
+```javascript
+// Wait for cookie consent dialog if it appears
+await puppeteer_waitForSelector_with_polling("[data-testid='confirmationSheetConfirm']", { timeout: 5000, visible: true, polling: 100 }).catch(() => console.log("No cookie consent dialog found"));
+
+// Click "Accept" if cookie dialog appears
+try {
+  await puppeteer_click("[data-testid='confirmationSheetConfirm']");
+  console.log("Accepted cookies");
+} catch (e) {
+  console.log("No cookie dialog or already accepted");
+}
+
+// Handle any "Sign up" or login modal that might appear
+await puppeteer_waitForSelector_with_polling("[data-testid='signupButton']", { timeout: 5000, visible: true, polling: 100 }).catch(() => console.log("No signup button found"));
+
+// Try to close modals if they appear
+try {
+  await puppeteer_click("[data-testid='closeButton']");
+  console.log("Closed modal");
+} catch (e) {
+  console.log("No modal to close");
+}
+```
+
+## 3. Search for Andrej Karpathy's Profile
+
+```javascript
+// Wait for the search box to be available
+await puppeteer_waitForSelector("[data-testid='SearchBox_Search_Input']", { timeout: 5000 });
+
+// Fill the search box with Andrej Karpathy's username
+await puppeteer_fill("[data-testid='SearchBox_Search_Input']", "karpathy");
+
+// Press Enter to search
+await puppeteer_evaluate(() => {
+  const searchInput = document.querySelector("[data-testid='SearchBox_Search_Input']");
+  if (searchInput) {
+    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+  }
+});
+
+// Wait for search results to load
+await puppeteer_waitForSelector_with_polling("[data-testid='cellInnerDiv']", { timeout: 10000, polling: 200 });
+```
+
+## 4. Navigate to Andrej Karpathy's Profile
+
+```javascript
+// Look for Andrej Karpathy's profile in search results
+// First try to find by display name
+await puppeteer_evaluate(() => {
+  const results = Array.from(document.querySelectorAll("[data-testid='cellInnerDiv']"));
+  const karpathyResult = results.find(div => 
+    div.textContent.includes("Andrej Karpathy") && 
+    div.querySelector("[data-testid='UserCell']")
+  );
+  
+  if (karpathyResult) {
+    // Add a unique ID to make it easier to click
+    karpathyResult.id = "karpathy-profile-result";
+  }
+});
+
+// Click on Karpathy's profile result
+try {
+  await puppeteer_click("#karpathy-profile-result");
+} catch (e) {
+  // If the ID approach fails, try clicking on the UserCell that contains "Andrej Karpathy"
+  await puppeteer_evaluate(() => {
+    const userCells = document.querySelectorAll("[data-testid='UserCell']");
+    for (const cell of userCells) {
+      if (cell.textContent.includes("Andrej Karpathy") || cell.textContent.includes("karpathy")) {
+        cell.click();
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+// Wait for profile page to load
+await puppeteer_waitForSelector_with_polling("[data-testid='primaryColumn']", { timeout: 10000, polling: 200 });
+```
+
+## 5. Verify We're on the Correct Profile
+
+```javascript
+// Check if we're on Andrej Karpathy's profile
+const isKarpath

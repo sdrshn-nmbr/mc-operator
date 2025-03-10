@@ -1,0 +1,114 @@
+# Generated Prompt
+# Original Command: go to x.com and search and summarize for the latest tweet by andrej karpathy
+# Task Type: social
+# Generated: 2025-03-10T02:13:11.068Z
+# ===================================
+
+# X.com Search and Summarize Latest Tweet by Andrej Karpathy
+
+Here's a detailed step-by-step guide to automate searching for and summarizing Andrej Karpathy's latest tweet on X.com:
+
+## 1. Navigate to X.com
+
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+## 2. Handle Cookie Consent and Login Walls
+
+```javascript
+// Wait for and handle possible cookie consent dialog
+try {
+  await puppeteer_waitForSelector('div[role="dialog"]', { timeout: 5000 });
+  
+  // Look for "Accept" or "Accept all" buttons
+  const acceptButtonSelectors = [
+    'button[data-testid="cookie-consent-accept"]', 
+    'button:has-text("Accept")', 
+    'button:has-text("Accept all")'
+  ];
+  
+  for (const selector of acceptButtonSelectors) {
+    const buttonExists = await puppeteer_evaluate(`
+      !!document.querySelector('${selector}')
+    `);
+    
+    if (buttonExists) {
+      await puppeteer_click(selector);
+      break;
+    }
+  }
+} catch (e) {
+  // No cookie dialog appeared, continue
+}
+
+// Check for and handle login wall
+try {
+  const loginWallExists = await puppeteer_evaluate(`
+    !!document.querySelector('[data-testid="loginButton"]') || 
+    !!document.querySelector('[data-testid="login"]') ||
+    !!document.querySelector('[aria-label="Close"]')
+  `);
+  
+  if (loginWallExists) {
+    // Try to close the login prompt if possible
+    try {
+      await puppeteer_click('[aria-label="Close"]');
+    } catch (e) {
+      // If we can't close it, we'll work with the limited view
+      console.log("Working with limited view due to login wall");
+    }
+  }
+} catch (e) {
+  // Continue if no login wall detected
+}
+```
+
+## 3. Search for Andrej Karpathy
+
+```javascript
+// Wait for the search box to appear
+await puppeteer_waitForSelector('input[data-testid="SearchBox_Search_Input"]', { timeout: 10000 });
+
+// Click on the search box
+await puppeteer_click('input[data-testid="SearchBox_Search_Input"]');
+
+// Type "Andrej Karpathy" in the search box
+await puppeteer_fill('input[data-testid="SearchBox_Search_Input"]', "Andrej Karpathy");
+
+// Press Enter to search
+await puppeteer_evaluate(`
+  const event = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    code: 'Enter',
+    which: 13,
+    keyCode: 13,
+    bubbles: true
+  });
+  document.querySelector('input[data-testid="SearchBox_Search_Input"]').dispatchEvent(event);
+`);
+
+// Wait for search results to load
+await puppeteer_waitForSelector('[data-testid="cellInnerDiv"]', { timeout: 10000 });
+```
+
+## 4. Find and Navigate to Andrej Karpathy's Profile
+
+```javascript
+// Look for Andrej Karpathy's profile in search results
+// Wait for people section to appear
+await puppeteer_waitForSelector_with_polling('[data-testid="typeaheadResult"]', { timeout: 15000, pollingInterval: 1000 });
+
+// Find and click on Andrej Karpathy's profile
+const foundProfile = await puppeteer_evaluate(`
+  // Look for verified accounts first
+  const verifiedUsers = Array.from(document.querySelectorAll('[data-testid="UserCell"]'));
+  
+  // Find the one that has both "Andrej Karpathy" and "@karpathy" in it
+  const karpathyProfile = verifiedUsers.find(user => {
+    const text = user.textContent.toLowerCase();
+    return text.includes('andrej karpathy') && text.includes('@karpathy');
+  });
+  
+  if (karpathyProfile) {
+    // Add a custom ID to make it easier to click

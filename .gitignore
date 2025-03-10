@@ -39,16 +39,29 @@ coverage/
 
 # Downloaded files
 *.pdf
+*.csv
+*.xlsx
+*.xls
 downloads/
+temp-downloads/
 
 # Temporary files
 tmp/
 temp/
 .cache/
+download-*.js
+temp-*.js
+
+# Browser session data
+.puppeteer/
+.chromium/
+browser-data/
 
 # Anthropic API keys and other secrets
 **/secrets.json
 **/credentials.json
+*api_key*
+*API_KEY*
 
 # Operating System Files
 .DS_Store
@@ -57,4 +70,8 @@ temp/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db
+
+# S3 URL token files
+s3-urls.json
+*-url-*.txt 

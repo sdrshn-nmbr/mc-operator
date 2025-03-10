@@ -1,0 +1,101 @@
+# DoorDash Souvla Chicken Bowl Order Automation
+
+Here's a detailed step-by-step guide to automate ordering a Souvla chicken bowl from DoorDash:
+
+## 1. Navigate to DoorDash website
+
+```javascript
+await puppeteer_navigate("https://www.doordash.com/");
+```
+
+## 2. Handle initial popups and cookie notices
+
+```javascript
+// Wait for and handle cookie consent if it appears
+try {
+  await puppeteer_waitForSelector_with_polling('button[data-testid="accept-cookies-button"]', 5000);
+  await puppeteer_click('button[data-testid="accept-cookies-button"]');
+} catch (error) {
+  console.log("No cookie consent popup found, continuing...");
+}
+
+// Handle any location popup that might appear
+try {
+  await puppeteer_waitForSelector_with_polling('button[data-testid="close-location-prompt"]', 5000);
+  await puppeteer_click('button[data-testid="close-location-prompt"]');
+} catch (error) {
+  console.log("No location popup found, continuing...");
+}
+```
+
+## 3. Set delivery address to "sf home"
+
+```javascript
+// Click on the address/location input field
+await puppeteer_waitForSelector('input[data-testid="AddressInput"]');
+await puppeteer_click('input[data-testid="AddressInput"]');
+
+// Enter "sf home" in the address field
+await puppeteer_fill('input[data-testid="AddressInput"]', 'sf home');
+
+// Wait for address suggestions to appear
+await puppeteer_waitForSelector_with_polling('[data-testid="address-suggestion"]', 5000);
+
+// Select the first address suggestion (which should be the saved "sf home" address)
+await puppeteer_click('[data-testid="address-suggestion"]:first-child');
+
+// Wait for the page to update with the new address
+await puppeteer_waitForSelector_with_polling('[data-testid="StoreFrontRestaurantFeedPage"]', 10000);
+```
+
+## 4. Search for "Souvla"
+
+```javascript
+// Click on the search field
+await puppeteer_waitForSelector('input[data-testid="SearchInputField"]');
+await puppeteer_click('input[data-testid="SearchInputField"]');
+
+// Type "Souvla" in the search field
+await puppeteer_fill('input[data-testid="SearchInputField"]', 'Souvla');
+
+// Press Enter to submit the search
+await puppeteer_evaluate(() => {
+  const searchInput = document.querySelector('input[data-testid="SearchInputField"]');
+  if (searchInput) {
+    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+  }
+});
+
+// Wait for search results to load
+await puppeteer_waitForSelector_with_polling('[data-testid="merchant-tile"]', 10000);
+```
+
+## 5. Select Souvla restaurant from search results
+
+```javascript
+// Find and click on the Souvla restaurant from search results
+await puppeteer_evaluate(() => {
+  const restaurantCards = Array.from(document.querySelectorAll('[data-testid="merchant-tile"]'));
+  const souvlaCard = restaurantCards.find(card => 
+    card.textContent.toLowerCase().includes('souvla'));
+  if (souvlaCard) {
+    souvlaCard.click();
+  } else {
+    throw new Error("Souvla restaurant not found in search results");
+  }
+});
+
+// Wait for restaurant menu page to load
+await puppeteer_waitForSelector_with_polling('[data-testid="menu-item-tile"]', 10000);
+```
+
+## 6. Find and select the chicken bowl
+
+```javascript
+// Take a screenshot to verify we're on the right page
+await puppeteer_screenshot("souvla-menu.png");
+
+// Find and click on the chicken bowl menu item
+await puppeteer_evaluate(() => {
+  // Look for menu items that contain both "chicken" and "bowl" in their text
+  

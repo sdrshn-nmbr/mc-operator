@@ -1,0 +1,113 @@
+# Generated Prompt
+# Original Command: go to amazon.com and buy me a pair of bose headphones
+# Task Type: shopping
+# Generated: 2025-03-10T04:45:32.239Z
+# ===================================
+
+# Detailed Automation Instructions for Purchasing Bose Headphones on Amazon
+
+## Overview
+This automation will navigate through Amazon.com to purchase Bose headphones, handling various edge cases and website behaviors.
+
+## Detailed Steps
+
+### 1. Navigate to Amazon.com
+```javascript
+await puppeteer_navigate("https://www.amazon.com");
+```
+
+### 2. Handle Cookie Notices and Popups
+```javascript
+// Wait for and dismiss any potential cookie notice
+await puppeteer_evaluate(`
+  const cookieBanners = [
+    document.querySelector('#sp-cc-accept'),
+    document.querySelector('[data-cel-widget="sp-cc-accept"]'),
+    document.querySelector('[data-action="sp-cc-accept"]'),
+    document.querySelector('.a-button-input[aria-labelledby="sp-cc-accept-button"]')
+  ].filter(Boolean);
+  
+  if (cookieBanners.length > 0) {
+    cookieBanners[0].click();
+  }
+`);
+
+// Handle potential popups
+await puppeteer_evaluate(`
+  const closeButtons = Array.from(document.querySelectorAll('button, a, span, div'))
+    .filter(el => {
+      const text = el.textContent.toLowerCase();
+      return text.includes('close') || text.includes('dismiss') || text.includes('no thanks') || 
+             text.includes('skip') || text.includes('×') || text.includes('x');
+    });
+  
+  if (closeButtons.length > 0) {
+    closeButtons[0].click();
+  }
+`);
+```
+
+### 3. Search for Bose Headphones
+```javascript
+// Wait for search box to be available
+await puppeteer_waitForSelector("#twotabsearchtextbox", { timeout: 10000 });
+
+// Enter search query
+await puppeteer_fill("#twotabsearchtextbox", "bose headphones");
+
+// Click search button
+await puppeteer_click("#nav-search-submit-button");
+```
+
+### 4. Alternative Search Method (if primary fails)
+```javascript
+// If the primary search method fails, try this alternative
+await puppeteer_evaluate(`
+  const searchBox = document.querySelector('input[type="text"][name="field-keywords"]') || 
+                   document.querySelector('input[placeholder*="Search"]');
+  if (searchBox) {
+    searchBox.value = "bose headphones";
+    const form = searchBox.closest('form');
+    if (form) form.submit();
+  }
+`);
+```
+
+### 5. Filter and Select a Bose Headphone Product
+```javascript
+// Wait for search results to load
+await puppeteer_waitForSelector_with_polling(".s-result-item", { timeout: 15000, pollingInterval: 500 });
+
+// Select the first Bose headphones product
+await puppeteer_evaluate(`
+  // Find all products with "Bose" in the title
+  const boseProducts = Array.from(document.querySelectorAll('.s-result-item'))
+    .filter(item => {
+      const titleElement = item.querySelector('h2, .a-text-normal');
+      return titleElement && 
+             titleElement.textContent.toLowerCase().includes('bose') && 
+             titleElement.textContent.toLowerCase().includes('headphone');
+    });
+  
+  // Mark the first valid product for easy selection
+  if (boseProducts.length > 0) {
+    const firstValidProduct = boseProducts[0];
+    firstValidProduct.setAttribute('data-automation-select', 'true');
+    
+    // Scroll it into view
+    firstValidProduct.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+`);
+
+// Take a screenshot of the search results for verification
+await puppeteer_screenshot("search-results.png");
+
+// Click on the marked product
+await puppeteer_waitForSelector('[data-automation-select="true"]');
+await puppeteer_click('[data-automation-select="true"] h2 a, [data-automation-select="true"] .a-link-normal');
+```
+
+### 6. Alternative Product Selection (if marking fails)
+```javascript
+await puppeteer_evaluate(`
+  // Find product links

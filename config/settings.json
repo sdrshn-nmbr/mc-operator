@@ -1,0 +1,24 @@
+{
+  "llm": {
+    "model": "claude-3-7-sonnet-latest",
+    "max_tokens": 1024,
+    "temperature": 0.7,
+    "beta_features": ["token-efficient-tools-2025-02-19"]
+  },
+  "templates": {
+    "base_dir": "templates",
+    "system_dir": "templates/system",
+    "tasks_dir": "templates/tasks",
+    "generated_dir": "templates/generated"
+  },
+  "execution": {
+    "max_iterations": 200,
+    "retry_attempts": 3,
+    "default_timeout": 30000
+  },
+  "browser": {
+    "headless": false,
+    "default_viewport": null,
+    "args": ["--start-maximized"]
+  }
+} 

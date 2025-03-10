@@ -1,0 +1,98 @@
+# Generated Prompt
+# Original Command: go to doordash.com and downlaod order me a souvla chicken bowl to my "sf home" address
+# Task Type: shopping
+# Generated: 2025-03-10T04:50:15.267Z
+# ===================================
+
+# DoorDash Souvla Chicken Bowl Order Automation
+
+Here's a detailed step-by-step guide to automate ordering a Souvla chicken bowl on DoorDash:
+
+## 1. Navigate to DoorDash website
+```javascript
+await puppeteer_navigate("https://www.doordash.com");
+```
+
+## 2. Handle initial popups and cookie notices
+```javascript
+// Wait for and close any cookie consent dialog
+await puppeteer_waitForSelector_with_polling('[data-testid="cookie-banner-close-button"]', { timeout: 5000, visible: true })
+  .then(() => puppeteer_click('[data-testid="cookie-banner-close-button"]'))
+  .catch(() => console.log("No cookie banner detected"));
+
+// Handle any location popup
+await puppeteer_waitForSelector_with_polling('[data-testid="LocationPromptInput"]', { timeout: 5000, visible: true })
+  .then(() => console.log("Location prompt detected"))
+  .catch(() => console.log("No location prompt detected"));
+```
+
+## 3. Set delivery address
+```javascript
+// Check if address input is visible
+await puppeteer_waitForSelector_with_polling('[data-testid="LocationPromptInput"]', { timeout: 5000 });
+
+// Enter "sf home" in the address input
+await puppeteer_fill('[data-testid="LocationPromptInput"]', 'sf home');
+
+// Wait for address suggestions to appear
+await puppeteer_waitForSelector_with_polling('[data-testid="AddressSuggestion"]', { timeout: 5000 });
+
+// Click on the first address suggestion
+await puppeteer_click('[data-testid="AddressSuggestion"]');
+
+// Click continue button if present
+await puppeteer_waitForSelector_with_polling('button[data-testid="LocationPromptButton"]', { timeout: 5000 })
+  .then(() => puppeteer_click('button[data-testid="LocationPromptButton"]'))
+  .catch(() => console.log("No continue button found"));
+```
+
+## 4. Search for Souvla
+```javascript
+// Wait for search input to be available
+await puppeteer_waitForSelector_with_polling('[data-testid="SearchInput"]', { timeout: 10000 });
+
+// Enter "Souvla" in the search box
+await puppeteer_fill('[data-testid="SearchInput"]', 'Souvla');
+
+// Press Enter to search
+await puppeteer_evaluate(() => {
+  const searchInput = document.querySelector('[data-testid="SearchInput"]');
+  if (searchInput) {
+    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+  }
+});
+
+// Wait for search results
+await puppeteer_waitForSelector_with_polling('[data-testid="store-name"]', { timeout: 10000 });
+```
+
+## 5. Select Souvla restaurant
+```javascript
+// Look for Souvla restaurant in search results
+await puppeteer_evaluate(() => {
+  const storeElements = document.querySelectorAll('[data-testid="store-name"]');
+  for (const element of storeElements) {
+    if (element.textContent.includes('Souvla')) {
+      element.closest('a').click();
+      return true;
+    }
+  }
+  return false;
+});
+
+// Alternative approach if the above fails
+await puppeteer_waitForSelector_with_polling('a[data-testid="vendor-url"]', { timeout: 5000 })
+  .then(async () => {
+    await puppeteer_evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a[data-testid="vendor-url"]'));
+      const souvlaLink = links.find(link => link.textContent.toLowerCase().includes('souvla'));
+      if (souvlaLink) souvlaLink.click();
+    });
+  })
+  .catch(() => console.log("Could not find vendor links"));
+```
+
+## 6. Find and select the chicken bowl
+```javascript
+// Wait for menu items to load
+await puppeteer_wait

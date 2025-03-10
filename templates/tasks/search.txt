@@ -1,0 +1,23 @@
+I need to search for information about {{query}} and collect the results.
+
+Please provide detailed step-by-step instructions for automating this search, including:
+
+1. Determining the best search engine or website to use for this query
+2. Navigating to the chosen site
+3. Entering the search query "{{query}}"
+4. Interpreting the search results
+5. Extracting relevant information from the top results
+6. Navigating to detailed pages if needed
+7. Collecting and organizing the information
+
+Consider these important aspects:
+- Different search interfaces and result layouts
+- How to handle paginated search results
+- Extracting structured data vs. unstructured content
+- Handling login walls or paywalls when accessing content
+- Using advanced search operators if needed
+- Saving or documenting the information found
+
+Provide specific selectors for each step, with alternate approaches if primary selectors fail.
+Include JavaScript evaluation scripts for extracting content when needed.
+Recommend approaches for filtering results to find the most relevant information. 

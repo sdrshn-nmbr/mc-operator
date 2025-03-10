@@ -1,0 +1,123 @@
+# Generated Prompt
+# Original Command: go to x.com and search for and summarize the latest tweet by andrej karpathy
+# Task Type: social
+# Generated: 2025-03-10T02:14:55.108Z
+# ===================================
+
+# Automating Search and Summary of Andrej Karpathy's Latest Tweet
+
+## Step-by-Step Instructions
+
+### 1. Navigate to X.com
+```javascript
+await puppeteer_navigate({ url: "https://x.com" });
+```
+
+### 2. Handle Initial Popups and Consent Dialogs
+```javascript
+// Wait for and handle cookie consent if it appears
+await puppeteer_waitForSelector_with_polling({
+  selector: "div[role='dialog'] button[type='submit'], div[data-testid='sheetDialog'] button[type='submit']",
+  timeout: 5000,
+  polling: 500,
+  visible: true,
+  hidden: false
+}).then(async () => {
+  await puppeteer_click({
+    selector: "div[role='dialog'] button[type='submit'], div[data-testid='sheetDialog'] button[type='submit']"
+  });
+}).catch(() => {
+  console.log("No cookie consent dialog found, continuing...");
+});
+
+// Handle login popup if it appears
+await puppeteer_waitForSelector_with_polling({
+  selector: "div[role='dialog'] div[aria-label='Close']",
+  timeout: 5000,
+  polling: 500,
+  visible: true,
+  hidden: false
+}).then(async () => {
+  await puppeteer_click({
+    selector: "div[role='dialog'] div[aria-label='Close']"
+  });
+}).catch(() => {
+  console.log("No login popup found, continuing...");
+});
+```
+
+### 3. Search for Andrej Karpathy
+```javascript
+// Wait for search box to be available
+await puppeteer_waitForSelector({
+  selector: "input[data-testid='SearchBox_Search_Input'], input[placeholder='Search']",
+  timeout: 5000,
+  visible: true,
+  hidden: false
+});
+
+// Click on search box
+await puppeteer_click({
+  selector: "input[data-testid='SearchBox_Search_Input'], input[placeholder='Search']"
+});
+
+// Enter search query
+await puppeteer_fill({
+  selector: "input[data-testid='SearchBox_Search_Input'], input[placeholder='Search']",
+  value: "from:karpathy"
+});
+
+// Press Enter to search
+await puppeteer_evaluate(() => {
+  const searchInput = document.querySelector("input[data-testid='SearchBox_Search_Input'], input[placeholder='Search']");
+  if (searchInput) {
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      code: 'Enter',
+      which: 13,
+      keyCode: 13,
+      bubbles: true
+    });
+    searchInput.dispatchEvent(event);
+  }
+});
+```
+
+### 4. Wait for Search Results to Load
+```javascript
+// Wait for timeline to appear
+await puppeteer_waitForSelector_with_polling({
+  selector: "div[data-testid='cellInnerDiv']",
+  timeout: 10000,
+  polling: 1000,
+  visible: true,
+  hidden: false
+});
+
+// Ensure we have tweets loaded
+await puppeteer_waitForSelector_with_polling({
+  selector: "article[data-testid='tweet']",
+  timeout: 10000,
+  polling: 1000,
+  visible: true,
+  hidden: false
+});
+```
+
+### 5. Extract the Latest Tweet Content
+```javascript
+// Extract the latest tweet information
+const tweetData = await puppeteer_evaluate(() => {
+  // Find the first tweet in the timeline
+  const tweetArticle = document.querySelector("article[data-testid='tweet']");
+  if (!tweetArticle) return { error: "No tweets found" };
+  
+  // Extract text content
+  const tweetTextElement = tweetArticle.querySelector("div[data-testid='tweetText']");
+  const tweetText = tweetTextElement ? tweetTextElement.innerText : "No text content found";
+  
+  // Extract timestamp
+  const timeElement = tweetArticle.querySelector("time");
+  const timestamp = timeElement ? timeElement.getAttribute("datetime") : "Unknown time";
+  
+  // Extract engagement

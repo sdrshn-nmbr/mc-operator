@@ -1,0 +1,121 @@
+# Generated Prompt
+# Original Command: go to x.com and search for the latest tweet by andrej karpathy
+# Task Type: search
+# Generated: 2025-03-10T02:08:50.257Z
+# ===================================
+
+# Automation Plan: Search for Latest Tweet by Andrej Karpathy
+
+For this task, the best approach is to go directly to X.com (formerly Twitter) since we're looking specifically for tweets by Andrej Karpathy. This will provide the most accurate and up-to-date information.
+
+## Step-by-Step Instructions
+
+### 1. Navigate to X.com
+
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+### 2. Wait for the main page to load
+
+```javascript
+await puppeteer_waitForSelector("input[aria-label='Search query']", { timeout: 10000 });
+```
+
+### 3. Click on the search box
+
+```javascript
+await puppeteer_click("input[aria-label='Search query']");
+```
+
+### 4. Enter the search query for Andrej Karpathy's tweets
+
+```javascript
+await puppeteer_fill("input[aria-label='Search query']", "from:karpathy");
+```
+
+### 5. Press Enter to submit the search
+   
+```javascript
+await puppeteer_evaluate(() => {
+  const searchInput = document.querySelector("input[aria-label='Search query']");
+  searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+});
+```
+
+### 6. Wait for search results to load
+
+```javascript
+// Wait for tweets to appear
+await puppeteer_waitForSelector_with_polling("[data-testid='tweet']", { timeout: 15000, pollingInterval: 500 });
+```
+
+### 7. Extract information from the latest tweet
+
+```javascript
+const tweetData = await puppeteer_evaluate(() => {
+  // Get all tweets
+  const tweets = document.querySelectorAll("[data-testid='tweet']");
+  if (!tweets || tweets.length === 0) return { error: "No tweets found" };
+  
+  // Get the first (latest) tweet
+  const latestTweet = tweets[0];
+  
+  // Extract text content
+  const tweetTextElement = latestTweet.querySelector("[data-testid='tweetText']");
+  const tweetText = tweetTextElement ? tweetTextElement.textContent : "No text found";
+  
+  // Extract timestamp
+  const timeElement = latestTweet.querySelector("time");
+  const timestamp = timeElement ? timeElement.getAttribute("datetime") : "No timestamp found";
+  const displayTime = timeElement ? timeElement.textContent : "";
+  
+  // Extract tweet URL
+  const tweetLinks = latestTweet.querySelectorAll("a");
+  let tweetUrl = "";
+  for (const link of tweetLinks) {
+    if (link.href && link.href.includes("/status/")) {
+      tweetUrl = link.href;
+      break;
+    }
+  }
+  
+  // Extract media if present
+  const hasImage = latestTweet.querySelector("[data-testid='tweetPhoto']") !== null;
+  const hasVideo = latestTweet.querySelector("[data-testid='videoPlayer']") !== null;
+  
+  // Extract engagement metrics
+  const replyElement = latestTweet.querySelector("[data-testid='reply']");
+  const retweetElement = latestTweet.querySelector("[data-testid='retweet']");
+  const likeElement = latestTweet.querySelector("[data-testid='like']");
+  
+  const metrics = {
+    replies: replyElement ? replyElement.textContent : "0",
+    retweets: retweetElement ? retweetElement.textContent : "0",
+    likes: likeElement ? likeElement.textContent : "0"
+  };
+  
+  return {
+    text: tweetText,
+    timestamp,
+    displayTime,
+    url: tweetUrl,
+    mediaContent: {
+      hasImage,
+      hasVideo
+    },
+    engagementMetrics: metrics
+  };
+});
+
+// Log the extracted data
+console.log("Latest tweet data:", tweetData);
+```
+
+### 8. Take a screenshot of the latest tweet
+
+```javascript
+await puppeteer_screenshot("latest_karpathy_tweet.png");
+```
+
+### 9.

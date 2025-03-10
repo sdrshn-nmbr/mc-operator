@@ -1,0 +1,23 @@
+I need to {{action}} on {{platform}} related to {{username}} {{content}}.
+
+Please provide detailed step-by-step instructions for automating this social media interaction, including:
+
+1. Navigating to the {{platform}} website
+2. Handling any login or authentication requirements (without submitting credentials)
+3. Finding {{username}}'s profile or content
+4. Executing the requested {{action}} (summarize, view, scroll, etc.)
+5. Capturing relevant information or content
+6. Handling dynamic content loading and pagination
+7. Extracting and presenting the required information
+
+Consider these important aspects:
+- Different layouts between desktop and mobile versions of {{platform}}
+- Login walls and cookie consent dialogs
+- Rate limiting and anti-automation measures
+- Timeline-based content that may change between visits
+- Best practices for finding and identifying specific posts or content
+- Methods for extracting text, images, or engagement metrics
+
+Provide specific selectors for each step, with alternate approaches if primary selectors fail.
+Include JavaScript evaluation scripts to help identify and extract content.
+Indicate points where human verification might be needed before proceeding. 

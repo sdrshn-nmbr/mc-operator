@@ -1,0 +1,23 @@
+I need to find and play media content related to {{content}} on {{platform}}.
+
+Please provide detailed step-by-step instructions for automating this media task, including:
+
+1. Navigating to the {{platform}} website
+2. Searching for "{{content}}"
+3. Filtering results to find the most relevant content
+4. Selecting the specific content to play
+5. Setting up playback options (quality, subtitles, etc.)
+6. Handling autoplay, suggested content, and ads
+7. Interacting with the media player as needed
+
+Consider these important aspects:
+- Different layouts between desktop and mobile versions
+- Login requirements or cookie walls
+- Advertisement interruptions
+- Consent dialogs and age verification prompts
+- Platform-specific features (playlists, queues, channels)
+- Keyboard shortcuts for media control
+
+Provide specific selectors for each step, with alternate approaches if primary selectors fail.
+Include JavaScript evaluation scripts for interacting with the media player when needed.
+Suggest methods for handling common issues like regional restrictions or premium content limitations. 

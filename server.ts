@@ -85,49 +85,151 @@ const TOOLS = [
       required: [],
     },
   },
+  {
+    name: "puppeteer_waitForSelector_with_polling",
+    description: "Wait for a selector to appear with polling, retrying multiple times",
+    inputSchema: {
+      type: "object",
+      properties: {
+        selector: { type: "string" },
+        timeout: { type: "number" },
+        pollingInterval: { type: "number" },
+        maxAttempts: { type: "number" },
+      },
+      required: ["selector"],
+    },
+  },
+  {
+    name: "puppeteer_click_without_target",
+    description: "Click a link or button after modifying it to not open in a new tab",
+    inputSchema: {
+      type: "object",
+      properties: {
+        selector: { type: "string" },
+        waitForNavigation: { type: "boolean" },
+        href: { type: "string" }
+      },
+      required: ["selector"]
+    }
+  },
 ];
 
-// Global browser and page instances
-let browser: Browser | undefined;
-let page: Page | undefined;
+// Global browser variables
+let browser: Browser | null = null;
+let page: Page | null = null;
+let debuggingUrl = '';
+
+// Function to get Chrome/Chromium executable path based on OS
+function getChromeExecutablePath(): string {
+  const platform = process.platform;
+  switch (platform) {
+    case 'win32':
+      return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+    case 'darwin': // macOS
+      return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+    case 'linux':
+      return '/usr/bin/google-chrome';
+    default:
+      return '';
+  }
+}
+
+// Launch Chrome with remote debugging enabled
+async function launchChromeWithRemoteDebugging(): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const chromePath = getChromeExecutablePath();
+    console.log(`Launching Chrome from: ${chromePath}`);
+    
+    // Launch Chrome with remote debugging enabled on port 9222
+    const chromeProcess = exec(
+      `"${chromePath}" --remote-debugging-port=9222 --no-first-run --no-default-browser-check --user-data-dir="${process.env.HOME || process.env.USERPROFILE}/puppeteer-chrome-profile"`,
+      (error) => {
+        if (error) {
+          console.error('Failed to launch Chrome:', error);
+          reject(error);
+        }
+      }
+    );
+    
+    // Give Chrome time to start
+    setTimeout(resolve, 2000);
+  });
+}
+
+// Fetch the WebSocket debugging URL from Chrome
+async function fetchDebuggingUrl(): Promise<string> {
+  try {
+    // Using fetch would require an extra dependency, so using node's http module
+    return new Promise((resolve, reject) => {
+      const http = require('http');
+      
+      const req = http.get('http://localhost:9222/json/version', (res: any) => {
+        let data = '';
+        
+        res.on('data', (chunk: any) => {
+          data += chunk;
+        });
+        
+        res.on('end', () => {
+          try {
+            const jsonData = JSON.parse(data);
+            resolve(jsonData.webSocketDebuggerUrl);
+          } catch (e) {
+            reject(new Error(`Failed to parse debugging URL: ${e}`));
+          }
+        });
+      });
+      
+      req.on('error', (error: any) => {
+        reject(new Error(`Failed to fetch debugging URL: ${error.message}`));
+      });
+    });
+  } catch (error) {
+    console.error('Error fetching debugging URL:', error);
+    throw error;
+  }
+}
 
 // Ensure a browser instance is available
 async function ensureBrowser(): Promise<Page> {
   if (!browser || !browser.isConnected()) {
-    // Launch browser with specific arguments to maximize window
-    browser = await puppeteer.launch({ 
-      headless: false,
-      defaultViewport: null, // Important - disables the default viewport
-      args: [
-        '--start-maximized', // Starts the browser maximized
-        '--window-size=1920,1080', // Fallback size if maximizing fails
-        '--no-sandbox',
-        '--disable-setuid-sandbox'
-      ]
-    });
+    console.log('Connecting to your existing Chrome browser...');
     
-    page = await browser.newPage();
-    
-    // Maximize using multiple approaches to ensure it works across platforms
-    
-    // Approach 1: Set viewport to a large size
-    await page.setViewport({
-      width: 1920,
-      height: 1080
-    });
-    
-    // Approach 2: Use Chrome DevTools Protocol session for true maximize
     try {
-      const session = await page.target().createCDPSession();
-      const {windowId} = await session.send('Browser.getWindowForTarget');
-      await session.send('Browser.setWindowBounds', {
-        windowId,
-        bounds: {windowState: 'maximized'}
-      });
+      // Try to fetch the debugging URL directly first
+      debuggingUrl = await fetchDebuggingUrl();
+      console.log('Found existing Chrome instance with debugging enabled');
     } catch (error) {
-      console.log("Could not maximize using CDP, falling back to viewport approach");
+      // If that fails, launch Chrome with debugging enabled
+      console.log('No existing Chrome instance found with debugging enabled. Launching a new one...');
+      await launchChromeWithRemoteDebugging();
+      debuggingUrl = await fetchDebuggingUrl();
     }
+    
+    // Connect to the browser instance
+    console.log(`Connecting to browser at: ${debuggingUrl}`);
+    browser = await puppeteer.connect({
+      browserWSEndpoint: debuggingUrl,
+      defaultViewport: null
+    });
+    
+    // Get all pages and use the last one (usually the most recently opened)
+    const pages = await browser.pages();
+    
+    if (pages.length > 0) {
+      // Use the last page that's already open
+      page = pages[pages.length - 1];
+      console.log(`Connected to existing page: ${await page.title()}`);
+    } else {
+      // Create a new page if none exists
+      page = await browser.newPage();
+      console.log('Created a new page');
+    }
+    
+    // Setup page
+    await page.setViewport({ width: 1600, height: 900 });
   }
+  
   return page!;
 }
 
@@ -157,7 +259,7 @@ async function downloadS3File(url: string, outputFilename: string = "941-form.pd
   });
 }
 
-// Modify the checkTabsForS3URL function to automatically download the file
+// Modify the checkTabsForS3URL function to better handle expired URLs and retry
 async function checkTabsForS3URL(timeout: number = 5000, autoDownload: boolean = true, outputFilename: string = "941-form.pdf"): Promise<{type: string, url: string, message: string, downloadResult?: string}> {
   console.log(`Checking all tabs for S3 URL with timeout: ${timeout}ms`);
   
@@ -188,8 +290,9 @@ async function checkTabsForS3URL(timeout: number = 5000, autoDownload: boolean =
         // Skip S3 pages as we already checked them
         if (page.url().includes('amazonaws.com')) continue;
         
-        // Check for iframe/embed elements with S3 URLs
+        // Check for various elements that might contain S3 URLs
         const s3EmbedUrl = await page.evaluate(() => {
+          // First, check iframes and embed elements
           const iframeEl = document.querySelector('iframe[src*="amazonaws.com"]');
           const embedEl = document.querySelector('embed[src*="amazonaws.com"]');
           const objectEl = document.querySelector('object[data*="amazonaws.com"]');
@@ -198,12 +301,78 @@ async function checkTabsForS3URL(timeout: number = 5000, autoDownload: boolean =
           if (embedEl && embedEl.getAttribute('src')) return embedEl.getAttribute('src');
           if (objectEl && objectEl.getAttribute('data')) return objectEl.getAttribute('data');
           
-          // Check for download links with S3 URLs
+          // Next, check for download links with S3 URLs
           const links = Array.from(document.querySelectorAll('a'));
           const s3Link = links.find(link => link.href && link.href.includes('amazonaws.com'));
           if (s3Link) return s3Link.href;
           
-          return null;
+          // Check for data attributes that might contain S3 URLs
+          const elementsWithDataAttributes = Array.from(document.querySelectorAll('[data-url], [data-download-url], [data-href], [data-src], [data-source]'));
+          for (const el of elementsWithDataAttributes) {
+            const url = el.getAttribute('data-url') || 
+                       el.getAttribute('data-download-url') || 
+                       el.getAttribute('data-href') || 
+                       el.getAttribute('data-src') || 
+                       el.getAttribute('data-source');
+            if (url && url.includes('amazonaws.com')) return url;
+          }
+          
+          // Check for JavaScript variables in the page that might contain S3 URLs - this approach can find URLs in more places
+          const scripts = Array.from(document.querySelectorAll('script:not([src])'));
+          let foundInScript: string | null = null;
+          
+          for (const script of scripts) {
+            const matches = script.textContent?.match(/https:\/\/[^"']*amazonaws\.com[^"']*/g);
+            if (matches && matches.length > 0) {
+              foundInScript = matches[0];
+              break;
+            }
+          }
+          
+          // Look for URLs in any element's innerHTML that might contain S3 URLs
+          if (!foundInScript) {
+            const allElements = Array.from(document.querySelectorAll('*'));
+            for (const el of allElements) {
+              if (el.innerHTML) {
+                const matches = el.innerHTML.match(/https:\/\/[^"']*amazonaws\.com[^"']*/g);
+                if (matches && matches.length > 0) {
+                  foundInScript = matches[0];
+                  break;
+                }
+              }
+            }
+          }
+          
+          // Check global variables for S3 URLs (most aggressive approach)
+          if (!foundInScript) {
+            try {
+              const allProps = Object.getOwnPropertyNames(window);
+              for (const prop of allProps) {
+                try {
+                  const value = (window as any)[prop];
+                  if (typeof value === 'string' && value.includes('amazonaws.com')) {
+                    foundInScript = value;
+                    break;
+                  } else if (typeof value === 'object' && value !== null) {
+                    const stringified = JSON.stringify(value);
+                    if (stringified.includes('amazonaws.com')) {
+                      const matches = stringified.match(/https:\/\/[^"']*amazonaws\.com[^"']*/g);
+                      if (matches && matches.length > 0) {
+                        foundInScript = matches[0];
+                        break;
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // Ignore errors from accessing properties
+                }
+              }
+            } catch (e) {
+              // Ignore errors from Object.getOwnPropertyNames
+            }
+          }
+          
+          return foundInScript;
         });
         
         if (s3EmbedUrl) {
@@ -213,6 +382,47 @@ async function checkTabsForS3URL(timeout: number = 5000, autoDownload: boolean =
           resultMessage = 'Found embedded S3 URL in tab content';
           break;
         }
+
+        // If still no URL found, check specifically for download buttons that might trigger a fetch
+        if (!s3Url) {
+          // Look for download buttons and wait a moment after clicking
+          const downloadButtons = await page.$$('button, a');
+          
+          for (const button of downloadButtons) {
+            try {
+              const buttonText = await page.evaluate(el => el.textContent, button);
+              if (buttonText && buttonText.toLowerCase().includes('download')) {
+                console.log('Found download button:', buttonText);
+                
+                // Click the button and wait for potential network requests with S3 URLs
+                await button.click();
+                
+                // Wait for any network requests that might happen
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Check again for S3 URLs that might have appeared
+                const newS3Url = await page.evaluate(() => {
+                  // Similar checks as before, but focused on new elements that might have appeared
+                  const links = Array.from(document.querySelectorAll('a'));
+                  const s3Link = links.find(link => 
+                    link.href && link.href.includes('amazonaws.com')
+                  );
+                  return s3Link ? s3Link.href : null;
+                });
+                
+                if (newS3Url) {
+                  console.log(`Found S3 URL after clicking download button: ${newS3Url.substring(0, 60)}...`);
+                  s3Url = newS3Url;
+                  resultType = 'button_click';
+                  resultMessage = 'Found S3 URL after clicking download button';
+                  break;
+                }
+              }
+            } catch (error) {
+              console.error('Error checking download button:', error);
+            }
+          }
+        }
       } catch (error) {
         console.error(`Error checking tab for S3 content: ${error}`);
       }
@@ -221,13 +431,33 @@ async function checkTabsForS3URL(timeout: number = 5000, autoDownload: boolean =
   
   // If URL found and autoDownload is enabled, download the file
   let downloadResult;
+  let downloadAttempts = 0;
+  const maxDownloadAttempts = 5;
+  
   if (s3Url && autoDownload) {
-    try {
-      downloadResult = await downloadS3File(s3Url, outputFilename);
-      resultMessage += `. File downloaded successfully to ${outputFilename}`;
-    } catch (error: any) {
-      downloadResult = `Error downloading file: ${error.message}`;
-      resultMessage += `. ${downloadResult}`;
+    while (downloadAttempts < maxDownloadAttempts) {
+      try {
+        console.log(`Download attempt ${downloadAttempts + 1}/${maxDownloadAttempts}`);
+        downloadResult = await downloadS3File(s3Url, outputFilename);
+        resultMessage += `. File downloaded successfully to ${outputFilename}`;
+        break;
+      } catch (error: any) {
+        downloadAttempts++;
+        
+        // Check if this is an expired token (403 Forbidden)
+        if (error.message && error.message.includes('403')) {
+          console.log('S3 URL expired. Attempting to refresh the URL...');
+          
+          if (downloadAttempts >= maxDownloadAttempts) {
+            downloadResult = `Error downloading file: ${error.message}. S3 URL expired - please try again.`;
+            resultMessage += `. ${downloadResult}`;
+          }
+        } else {
+          downloadResult = `Error downloading file: ${error.message}`;
+          resultMessage += `. ${downloadResult}`;
+          break;
+        }
+      }
     }
   }
   
@@ -237,6 +467,61 @@ async function checkTabsForS3URL(timeout: number = 5000, autoDownload: boolean =
     message: resultMessage,
     downloadResult
   };
+}
+
+// Add this function to wait for selectors with polling
+async function waitForSelectorWithPolling(
+  selector: string, 
+  timeout: number = 10000, 
+  pollingInterval: number = 500,
+  maxAttempts: number = 10
+): Promise<string> {
+  const page = await ensureBrowser();
+  console.log(`Waiting for selector "${selector}" with polling...`);
+  
+  let attempts = 0;
+  while (attempts < maxAttempts) {
+    attempts++;
+    console.log(`Attempt ${attempts}/${maxAttempts} for selector: ${selector}`);
+    
+    try {
+      // Try to find the element with a short timeout
+      await page.waitForSelector(selector, { timeout: pollingInterval });
+      console.log(`Selector "${selector}" found on attempt ${attempts}`);
+      return `Selector "${selector}" found after ${attempts} attempts`;
+    } catch (error) {
+      // If we've reached max attempts, throw the error
+      if (attempts >= maxAttempts) {
+        throw new Error(`Failed to find selector "${selector}" after ${maxAttempts} attempts`);
+      }
+      
+      // Otherwise, log and continue
+      console.log(`Selector not found, polling again...`);
+      
+      // Optionally, you could execute JavaScript to check or modify the DOM here
+      try {
+        await page.evaluate((sel) => {
+          // Look for close matches that might have dynamic IDs or classes
+          const elements = document.querySelectorAll('*');
+          // Convert NodeListOf to Array before iterating
+          Array.from(elements).forEach(el => {
+            if (el.textContent?.includes(sel.replace(/[^\w\s]/g, ''))) {
+              console.log('Found element with similar text:', el.textContent);
+              // Optionally add an ID to help future selections
+              el.id = 'polled-element-' + Date.now();
+            }
+          });
+        }, selector);
+      } catch (evalError) {
+        console.error('Error during evaluation:', evalError);
+      }
+      
+      // Wait for the polling interval before trying again
+      await new Promise(resolve => setTimeout(resolve, pollingInterval));
+    }
+  }
+  
+  throw new Error(`Timed out waiting for selector "${selector}" after ${timeout}ms`);
 }
 
 // Handle tool calls from the client
@@ -309,6 +594,80 @@ async function handleToolCall(name: string, args: any) {
           content: [{ type: "text", text: JSON.stringify(s3Result) }],
           isError: s3Result.type === 'not_found'
         };
+      case "puppeteer_waitForSelector_with_polling":
+        const { selector: pollingSelector, timeout: pollingTimeout = 10000, pollingInterval = 500, maxAttempts = 10 } = args;
+        try {
+          const result = await waitForSelectorWithPolling(pollingSelector, pollingTimeout, pollingInterval, maxAttempts);
+          return { 
+            content: [{ type: "text", text: result }],
+            isError: false
+          };
+        } catch (error: any) {
+          return { 
+            content: [{ type: "text", text: `Error: ${error.message}` }],
+            isError: true
+          };
+        }
+      case "puppeteer_click_without_target": {
+        const selector = args.selector;
+        const waitForNavigation = args.waitForNavigation === true;
+        const href = args.href;
+        
+        try {
+          // First, modify the element to prevent new tab opening
+          await page.evaluate((selector, href) => {
+            const element = document.querySelector(selector);
+            if (!element) throw new Error(`Element not found: ${selector}`);
+            
+            // Remove target="_blank" or any other target
+            element.removeAttribute('target');
+            
+            // Override click behavior
+            element.onclick = function(e: MouseEvent) {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              // If href was provided, update the element's href
+              if (href) {
+                element.setAttribute('href', href);
+              }
+              
+              // Navigate in the same tab
+              window.location.href = element.getAttribute('href') || '';
+              return false;
+            };
+            
+            // Also, if it's a button, prevent any event listeners that might open a new tab
+            const originalClick = element.click;
+            element.click = function() {
+              try {
+                originalClick.call(this);
+              } catch (e) {
+                console.error('Error during click:', e);
+              }
+              return false;
+            };
+          }, selector, href);
+          
+          // Now click the element
+          if (waitForNavigation) {
+            await Promise.all([
+              page.waitForNavigation({ waitUntil: 'networkidle0' }),
+              page.click(selector)
+            ]);
+          } else {
+            await page.click(selector);
+          }
+          
+          return { content: [{ type: "text", text: `Clicked ${selector} in same tab` }] };
+        } catch (error: any) {
+          console.error(`Error clicking without target: ${error}`);
+          return { 
+            content: [{ type: "text", text: `Error clicking ${selector}: ${error.message}` }],
+            isError: true 
+          };
+        }
+      }
       default:
         return { content: [{ type: "text", text: `Unknown tool: ${name}` }], isError: true };
     }
@@ -338,7 +697,15 @@ async function main() {
   // Cleanup on process exit
   process.on("SIGINT", async () => {
     if (browser) {
-      await browser.close();
+      // Disconnect from the browser instead of closing it
+      // This allows the user's Chrome session to remain open
+      if (debuggingUrl) {
+        await browser.disconnect();
+        console.log('Disconnected from Chrome browser');
+      } else {
+        await browser.close();
+        console.log('Closed browser instance');
+      }
     }
     process.exit(0);
   });

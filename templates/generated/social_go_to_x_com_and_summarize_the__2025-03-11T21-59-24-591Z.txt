@@ -1,0 +1,114 @@
+# Generated Prompt
+# Original Command: go to x.com and summarize the first tweet you see
+# Task Type: social
+# Generated: 2025-03-11T21:59:24.591Z
+# ===================================
+
+# Step-by-Step Instructions to Summarize the First Tweet on X.com
+
+## 1. Navigate to X.com
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+## 2. Handle Login Wall (if it appears)
+```javascript
+// Wait a moment for any login wall to appear
+await puppeteer_waitForSelector_with_polling("body", { timeout: 5000, pollingInterval: 500 });
+
+// Check if login wall exists and close it if possible
+await puppeteer_evaluate(`
+  // Look for "Not now" or "X" buttons on login prompts
+  const closeButtons = Array.from(document.querySelectorAll('span')).filter(el => 
+    el.textContent.includes('Not now') || 
+    el.textContent.includes('×') || 
+    el.textContent.includes('Close')
+  );
+  
+  if (closeButtons.length > 0) {
+    closeButtons[0].click();
+  }
+  
+  // Alternative: Check if we can interact with the page despite the login wall
+  const canInteract = document.querySelector('[data-testid="primaryColumn"]') !== null;
+  canInteract;
+`);
+```
+
+## 3. Handle Cookie Consent Dialog (if it appears)
+```javascript
+await puppeteer_evaluate(`
+  // Look for cookie consent buttons
+  const cookieButtons = Array.from(document.querySelectorAll('button')).filter(el => 
+    el.textContent.includes('Accept') || 
+    el.textContent.includes('I agree') || 
+    el.textContent.includes('Allow cookies')
+  );
+  
+  if (cookieButtons.length > 0) {
+    cookieButtons[0].click();
+  }
+`);
+```
+
+## 4. Wait for Timeline to Load
+```javascript
+// Wait for the main timeline to appear
+await puppeteer_waitForSelector_with_polling('[data-testid="primaryColumn"]', { 
+  timeout: 10000, 
+  pollingInterval: 1000 
+});
+
+// Wait for tweets to load
+await puppeteer_waitForSelector_with_polling('[data-testid="tweet"]', { 
+  timeout: 15000, 
+  pollingInterval: 1000 
+});
+```
+
+## 5. Extract the First Tweet's Content
+```javascript
+const tweetContent = await puppeteer_evaluate(`
+  // Find the first tweet
+  const tweetElements = document.querySelectorAll('[data-testid="tweet"]');
+  
+  if (tweetElements.length === 0) {
+    return "No tweets found on the timeline.";
+  }
+  
+  const firstTweet = tweetElements[0];
+  
+  // Get author information
+  const authorElement = firstTweet.querySelector('[data-testid="User-Name"]');
+  const authorName = authorElement ? authorElement.textContent.trim() : "Unknown Author";
+  
+  // Get tweet text
+  const tweetTextElement = firstTweet.querySelector('[data-testid="tweetText"]');
+  const tweetText = tweetTextElement ? tweetTextElement.textContent.trim() : "No text content";
+  
+  // Get media if available
+  const hasMedia = firstTweet.querySelector('[data-testid="tweetPhoto"]') !== null;
+  
+  // Get engagement metrics
+  const metrics = {};
+  const replyElement = firstTweet.querySelector('[data-testid="reply"]');
+  const retweetElement = firstTweet.querySelector('[data-testid="retweet"]');
+  const likeElement = firstTweet.querySelector('[data-testid="like"]');
+  
+  if (replyElement) {
+    const replyCount = replyElement.textContent.trim();
+    metrics.replies = replyCount;
+  }
+  
+  if (retweetElement) {
+    const retweetCount = retweetElement.textContent.trim();
+    metrics.retweets = retweetCount;
+  }
+  
+  if (likeElement) {
+    const likeCount = likeElement.textContent.trim();
+    metrics.likes = likeCount;
+  }
+  
+  // Get timestamp
+  const timeElement = firstTweet.querySelector('time

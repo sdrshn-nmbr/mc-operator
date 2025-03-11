@@ -1,0 +1,105 @@
+# Generated Prompt
+# Original Command: go to x.com and summarize the first tweet in 1 sentence
+# Task Type: social
+# Generated: 2025-03-11T21:43:47.191Z
+# ===================================
+
+# Step-by-Step Instructions to Summarize the First Tweet on X.com
+
+## 1. Navigate to X.com
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+## 2. Handle Initial Popups and Consent Dialogs
+```javascript
+// Wait for the page to load
+await puppeteer_waitForSelector("body", { timeout: 10000 });
+
+// Check and handle login popup if it appears
+try {
+  await puppeteer_waitForSelector('[data-testid="LoginDialog"]', { timeout: 5000 });
+  // If login dialog appears, look for a close button
+  await puppeteer_click('[aria-label="Close"]');
+} catch (error) {
+  // Login dialog didn't appear, continue
+}
+
+// Check and handle cookie consent if it appears
+try {
+  await puppeteer_waitForSelector('[data-testid="cookie-consent-dialog"]', { timeout: 5000 });
+  await puppeteer_click('[data-testid="cookie-consent-dialog"] [role="button"]:nth-child(1)');
+} catch (error) {
+  // Cookie dialog didn't appear, continue
+}
+```
+
+## 3. Find and Extract the First Tweet
+```javascript
+// Wait for timeline to load - try multiple possible selectors
+await puppeteer_waitForSelector_with_polling('[data-testid="cellInnerDiv"]', { timeout: 20000, pollingInterval: 1000 });
+
+// Extract the text from the first tweet using JavaScript evaluation
+const tweetText = await puppeteer_evaluate(() => {
+  // Try multiple potential selectors to find tweet text
+  // First, look for the most specific selectors
+  const timelineTweets = document.querySelectorAll('[data-testid="cellInnerDiv"]');
+  
+  if (timelineTweets && timelineTweets.length > 0) {
+    // Find the first actual tweet (some cells might be recommendations or ads)
+    for (const cell of timelineTweets) {
+      // Look for tweet text container
+      const tweetTextElement = cell.querySelector('[data-testid="tweetText"]');
+      if (tweetTextElement) {
+        return tweetTextElement.textContent.trim();
+      }
+    }
+  }
+  
+  // Fallback to more general selectors if specific ones fail
+  const tweetContainers = document.querySelectorAll('article');
+  if (tweetContainers && tweetContainers.length > 0) {
+    for (const article of tweetContainers) {
+      const text = article.textContent.trim();
+      if (text && text.length > 10) { // Assume real tweets have some minimum length
+        return text;
+      }
+    }
+  }
+  
+  return "No tweet found";
+});
+
+// Log the extracted tweet text
+console.log("First tweet text:", tweetText);
+
+// Take a screenshot of the first tweet for verification
+await puppeteer_screenshot("first_tweet.png");
+```
+
+## 4. Handle Edge Cases Where Timeline Doesn't Load Properly
+```javascript
+// If no tweets were found in the timeline, try refreshing the page
+if (tweetText === "No tweet found") {
+  console.log("No tweets found, attempting to refresh the page");
+  await puppeteer_navigate("https://x.com");
+  
+  // Wait again for timeline after refresh
+  await puppeteer_waitForSelector_with_polling('[data-testid="cellInnerDiv"]', { timeout: 20000, pollingInterval: 1000 });
+  
+  // Try extraction again with the same logic as before
+  const refreshedTweetText = await puppeteer_evaluate(() => {
+    const timelineTweets = document.querySelectorAll('[data-testid="cellInnerDiv"]');
+    
+    if (timelineTweets && timelineTweets.length > 0) {
+      for (const cell of timelineTweets) {
+        const tweetTextElement = cell.querySelector('[data-testid="tweetText"]');
+        if (tweetTextElement) {
+          return tweetTextElement.textContent.trim();
+        }
+      }
+    }
+    
+    return "No tweet found after refresh";
+  });
+  

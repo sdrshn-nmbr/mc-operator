@@ -1,0 +1,108 @@
+# Generated Prompt
+# Original Command: go to x.com
+# Task Type: social
+# Generated: 2025-03-11T22:10:19.479Z
+# ===================================
+
+# Detailed Steps to Visit X.com (Twitter)
+
+## 1. Navigate to X.com
+
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+## 2. Handle Initial Page Load and Potential Interruptions
+
+```javascript
+// Wait for the page to load
+await puppeteer_waitForSelector_with_polling("body", 5000, 500);
+
+// Take a screenshot to verify the page loaded
+await puppeteer_screenshot("initial_load.png");
+
+// Handle possible login wall
+await puppeteer_evaluate(`
+  // Check if login wall exists and close it if possible
+  const closeButton = document.querySelector('[aria-label="Close"]');
+  if (closeButton) closeButton.click();
+  
+  // Alternative: Look for "Not now" button for login prompts
+  const notNowButton = Array.from(document.querySelectorAll('span')).find(el => el.textContent === 'Not now');
+  if (notNowButton) notNowButton.closest('div[role="button"]').click();
+`);
+```
+
+## 3. Handle Cookie Consent or Other Popups
+
+```javascript
+// Wait briefly to see if any popups appear
+await puppeteer_evaluate(`
+  // Try multiple approaches to find and close popups
+  // Method 1: Look for common close buttons
+  const closeButtons = document.querySelectorAll('[aria-label="Close"], .r-18u37iz:not([role="none"]) [role="button"]');
+  closeButtons.forEach(btn => btn.click());
+  
+  // Method 2: Look for "Accept all cookies" or similar buttons
+  const acceptButtons = Array.from(document.querySelectorAll('span')).filter(el => 
+    el.textContent.includes('Accept') || el.textContent.includes('Cookie') || el.textContent.includes('Continue')
+  );
+  acceptButtons.forEach(btn => {
+    const clickable = btn.closest('div[role="button"]') || btn.closest('button');
+    if (clickable) clickable.click();
+  });
+`);
+
+// Take another screenshot after handling popups
+await puppeteer_screenshot("after_popups.png");
+```
+
+## 4. Search for Content on X.com
+
+```javascript
+// Wait for the search input to be available
+// Try multiple selector approaches as the search box may change
+await puppeteer_waitForSelector_with_polling('input[placeholder="Search"], input[aria-label="Search query"], [data-testid="SearchBox_Search_Input"]', 5000, 500);
+
+// Try to click on the search box first (sometimes required before typing)
+try {
+  await puppeteer_click('input[placeholder="Search"], input[aria-label="Search query"], [data-testid="SearchBox_Search_Input"]');
+} catch (e) {
+  console.log("Could not click search box directly, will try alternative methods");
+}
+
+// Fill the search input
+await puppeteer_fill('input[placeholder="Search"], input[aria-label="Search query"], [data-testid="SearchBox_Search_Input"]', "{{query}}");
+
+// Submit the search using multiple approaches for reliability
+// Method 1: Click the search button if available
+await puppeteer_evaluate(`
+  // Look for search button
+  const searchButton = document.querySelector('[data-testid="SearchBox_Search_Button"]');
+  if (searchButton) {
+    searchButton.click();
+    return "Search button clicked";
+  }
+  
+  // If no button found, try to submit the form
+  const searchForm = document.querySelector('form');
+  if (searchForm) {
+    searchForm.submit();
+    return "Search form submitted";
+  }
+  
+  // If neither works, try to simulate Enter key
+  const searchInput = document.querySelector('input[placeholder="Search"], input[aria-label="Search query"], [data-testid="SearchBox_Search_Input"]');
+  if (searchInput) {
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      which: 13,
+      bubbles: true
+    });
+    searchInput.dispatchEvent(event);
+    return "Enter key simulated";
+  }
+  
+  return

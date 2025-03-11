@@ -1,0 +1,104 @@
+# Generated Prompt
+# Original Command: go to framer.com and create a landing page that resembles the landing page for stainless.com make it extremely intuitive and interactive and attractive
+# Task Type: search
+# Generated: 2025-03-11T06:02:39.048Z
+# ===================================
+
+# Web Automation for Creating a Framer Landing Page Similar to Stainless.com
+
+I understand you want to create a landing page in Framer that resembles Stainless.com's landing page. I'll provide detailed steps to accomplish this task, which involves visiting both sites, analyzing Stainless.com, and creating a similar page in Framer.
+
+## Step-by-Step Instructions
+
+### 1. Navigate to Stainless.com to analyze the design
+```javascript
+await puppeteer_navigate("https://stainless.com");
+```
+
+### 2. Take a screenshot of Stainless.com for reference
+```javascript
+await puppeteer_screenshot("stainless_reference.png");
+```
+
+### 3. Analyze key design elements of Stainless.com
+```javascript
+const stainlessDesignElements = await puppeteer_evaluate(() => {
+  // Extract color scheme
+  const computedStyles = {};
+  const colorElements = document.querySelectorAll('h1, h2, p, a, button');
+  colorElements.forEach((el, index) => {
+    if (index < 10) { // Limit to first 10 elements to avoid excessive data
+      const style = window.getComputedStyle(el);
+      computedStyles[el.tagName + index] = {
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize
+      };
+    }
+  });
+  
+  // Extract layout structure
+  const layout = {
+    heroSection: !!document.querySelector('header') || !!document.querySelector('.hero'),
+    sections: document.querySelectorAll('section').length,
+    hasFooter: !!document.querySelector('footer'),
+    hasNavbar: !!document.querySelector('nav') || !!document.querySelector('header nav')
+  };
+  
+  // Extract interactive elements
+  const interactiveElements = {
+    buttons: document.querySelectorAll('button').length,
+    links: document.querySelectorAll('a').length,
+    forms: document.querySelectorAll('form').length,
+    hasAnimations: document.querySelectorAll('[class*="anim"]').length > 0
+  };
+  
+  return {
+    computedStyles,
+    layout,
+    interactiveElements
+  };
+});
+
+console.log("Stainless.com design elements:", stainlessDesignElements);
+```
+
+### 4. Navigate to Framer.com
+```javascript
+await puppeteer_navigate("https://framer.com");
+```
+
+### 5. Check if login is required and handle it if necessary
+```javascript
+const isLoggedIn = await puppeteer_evaluate(() => {
+  // Check for common logged-in indicators
+  return !document.querySelector('a[href*="login"]') || 
+         !document.querySelector('a[href*="signin"]') ||
+         !!document.querySelector('[aria-label*="account"]') ||
+         !!document.querySelector('[aria-label*="profile"]');
+});
+
+if (!isLoggedIn) {
+  console.log("Login required. Proceeding with login...");
+  
+  // Look for login button
+  await puppeteer_waitForSelector('a[href*="login"], a[href*="signin"], button:contains("Log in"), button:contains("Sign in")');
+  await puppeteer_click('a[href*="login"], a[href*="signin"], button:contains("Log in"), button:contains("Sign in")');
+  
+  // Wait for login form
+  await puppeteer_waitForSelector('input[type="email"], input[name="email"]');
+  
+  // Fill in credentials (these would need to be provided)
+  await puppeteer_fill('input[type="email"], input[name="email"]', 'YOUR_EMAIL');
+  await puppeteer_fill('input[type="password"], input[name="password"]', 'YOUR_PASSWORD');
+  
+  // Submit login form
+  await puppeteer_reliable_form_submit();
+  
+  // Wait for successful login
+  await puppeteer_waitForSelector_with_polling('[aria-label*="account"], [aria-label*="profile"], .dashboard', 5000, 30000);
+}
+```
+
+### 6. Navigate

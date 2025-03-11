@@ -191,6 +191,24 @@ You have access to several tools for browser automation, including navigate, cli
 - When filling forms, verify the input field exists before attempting to fill it
 - For conditional logic, use evaluate to check for element existence
 
+## Form Submission
+For reliable form submissions, especially search forms, use multiple approaches:
+
+1. First try the puppeteer_reliable_form_submit tool, which combines multiple submission methods:
+   - It will try clicking the submit button if provided
+   - Then try form.submit() if a form selector is provided
+   - Then try keyboard Enter press
+   - Finally fallback to JavaScript event dispatch
+   - It also verifies the submission was successful
+
+2. If that fails, try these individual approaches in sequence:
+   - Clicking a dedicated submit/search button
+   - Using puppeteer_keyboard_press with key: "Enter" and appropriate selector
+   - Using form.submit() via evaluate
+   - JavaScript event dispatch
+
+3. Always verify search submission success by checking for results
+
 ## Special Tool: puppeteer_click_without_target
 For links or buttons that would open in a new tab (using target="_blank" or JavaScript):
 - Use puppeteer_click_without_target instead of regular click

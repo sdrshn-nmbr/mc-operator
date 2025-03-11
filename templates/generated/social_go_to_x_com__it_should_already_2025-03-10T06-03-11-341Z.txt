@@ -1,0 +1,117 @@
+# Generated Prompt
+# Original Command: go to x.com (it should already be logged in) and search for "MCP". find and summarize your learnings from thr top 10 posts returned by this search - scroll on the page if you need to
+# Task Type: social
+# Generated: 2025-03-10T06:03:11.343Z
+# ===================================
+
+# X.com Search and Summarize Automation Instructions
+
+This guide provides detailed steps to automate searching for "MCP" on X.com and summarizing the top 10 posts.
+
+## Prerequisites
+- The browser should already be logged into X.com
+
+## Detailed Steps
+
+### 1. Navigate to X.com
+
+```javascript
+await puppeteer_navigate("https://x.com/");
+```
+
+### 2. Check if already logged in
+
+```javascript
+const isLoggedIn = await puppeteer_evaluate(`
+  // Look for elements that indicate a logged-in state
+  const hasHomeLink = document.querySelector('a[aria-label="Home"]') !== null;
+  const hasProfileButton = document.querySelector('a[aria-label="Profile"]') !== null;
+  hasHomeLink || hasProfileButton;
+`);
+
+if (!isLoggedIn) {
+  console.log("ERROR: Not logged into X.com. Please log in first.");
+  // Take a screenshot of the current state
+  await puppeteer_screenshot("not_logged_in.png");
+  return;
+}
+```
+
+### 3. Access the search functionality
+
+```javascript
+// Wait for the page to fully load
+await puppeteer_waitForSelector('a[aria-label="Home"]', { timeout: 30000 });
+
+// Look for and click the search box/icon
+try {
+  // Try the main search input first
+  await puppeteer_waitForSelector('input[placeholder="Search"]', { timeout: 5000 });
+  await puppeteer_click('input[placeholder="Search"]');
+} catch (e) {
+  // If main search not found, try the explore/search tab
+  try {
+    await puppeteer_waitForSelector('a[aria-label="Search and explore"]', { timeout: 5000 });
+    await puppeteer_click('a[aria-label="Search and explore"]');
+  } catch (e2) {
+    // Last resort - try the mobile layout search icon
+    await puppeteer_waitForSelector('a[aria-label="Explore"]', { timeout: 5000 });
+    await puppeteer_click('a[aria-label="Explore"]');
+  }
+}
+```
+
+### 4. Enter the search query
+
+```javascript
+// Wait for the search input to be available
+await puppeteer_waitForSelector_with_polling('input[data-testid="SearchBox_Search_Input"]', { timeout: 10000 });
+
+// Enter the search query
+await puppeteer_fill('input[data-testid="SearchBox_Search_Input"]', 'MCP');
+
+// Press Enter to submit the search
+await puppeteer_evaluate(`
+  const searchInput = document.querySelector('input[data-testid="SearchBox_Search_Input"]');
+  if (searchInput) {
+    const enterEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      which: 13,
+      bubbles: true
+    });
+    searchInput.dispatchEvent(enterEvent);
+  }
+`);
+```
+
+### 5. Wait for search results to load
+
+```javascript
+// Wait for the search results to appear
+await puppeteer_waitForSelector_with_polling('[data-testid="cellInnerDiv"]', { timeout: 30000 });
+
+// Take a screenshot of the search results
+await puppeteer_screenshot("search_results.png");
+```
+
+### 6. Extract and store the top 10 posts
+
+```javascript
+const posts = await puppeteer_evaluate(`
+  // Function to extract text content safely
+  function getTextContent(element) {
+    return element ? element.textContent.trim() : '';
+  }
+  
+  // Get all post containers
+  const postContainers = Array.from(document.querySelectorAll('[data-testid="cellInnerDiv"]'))
+    .filter(div => div.querySelector('[data-testid="tweetText"]'));
+  
+  // Extract data from the first 10 posts (or fewer if less are available)
+  const extractedPosts = [];
+  const postsToExtract = Math.min(postContainers.length, 10);
+  
+  for (let i = 0; i < postsToExtract; i++) {
+    const container = post

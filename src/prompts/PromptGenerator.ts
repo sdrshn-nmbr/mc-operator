@@ -135,8 +135,13 @@ export class PromptGenerator {
             } else if (result.taskType === 'social') {
               // Default social media parameters
               if (param === 'action' && !result.parameters.action) {
-                result.parameters.action = command.toLowerCase().includes('summarize') ? 
-                  'summarize' : 'view';
+                if (command.toLowerCase().includes('search')) {
+                  result.parameters.action = command.toLowerCase().includes('summarize') ? 
+                    'search and summarize' : 'search';
+                } else {
+                  result.parameters.action = command.toLowerCase().includes('summarize') ? 
+                    'summarize' : 'view';
+                }
               }
               if (param === 'platform' && !result.parameters.platform) {
                 // Check for platform mentions
@@ -144,23 +149,37 @@ export class PromptGenerator {
                 for (const platform of platforms) {
                   if (command.toLowerCase().includes(platform)) {
                     result.parameters.platform = platform === 'x' || platform === 'x.com' ? 
-                      'twitter' : platform;
+                      'x.com' : platform;
                     break;
                   }
                 }
                 if (!result.parameters.platform) {
-                  result.parameters.platform = 'twitter'; // Default to Twitter/X
+                  result.parameters.platform = 'x.com'; // Default to X (Twitter)
                 }
               }
-              // Extract username if mentioned
+              
+              // Extract search query if it's a search task
+              if (command.toLowerCase().includes('search')) {
+                const queryRegex = /search\s+(?:for|about)?\s*["']([^"']+)["']|search\s+(?:for|about)?\s+([^\s.]+(?:\s+[^\s.]+)*)/i;
+                const match = command.match(queryRegex);
+                if (match) {
+                  result.parameters.query = match[1] || match[2];
+                }
+              }
+              
+              // Only extract username if it's specifically mentioned or needed
               if (!result.parameters.username && command.includes('@')) {
                 const usernameMatch = command.match(/@([a-zA-Z0-9_]+)/);
                 if (usernameMatch) {
                   result.parameters.username = usernameMatch[1];
                 }
               }
-              // Look for specific usernames mentioned
-              if (!result.parameters.username) {
+              
+              // Look for specific usernames mentioned, but only if this seems to be a profile-related task
+              if (!result.parameters.username && !command.toLowerCase().includes('search') && 
+                  (command.toLowerCase().includes('profile') || 
+                   command.toLowerCase().includes('tweet') || 
+                   command.toLowerCase().includes('post'))) {
                 const commonNames = ['Elon Musk', 'elonmusk', 'karpathy', 'Andrej Karpathy'];
                 for (const name of commonNames) {
                   if (command.toLowerCase().includes(name.toLowerCase())) {

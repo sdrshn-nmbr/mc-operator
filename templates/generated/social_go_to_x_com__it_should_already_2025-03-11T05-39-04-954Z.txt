@@ -1,0 +1,138 @@
+# Generated Prompt
+# Original Command: go to x.com (it should already be logged in) and search for "MCP". find and summarize your learnings from the top 10 posts returned by this search - scroll on the page if you need to
+# Task Type: social
+# Generated: 2025-03-11T05:39:04.955Z
+# ===================================
+
+# X.com Search and Summarize Automation Instructions
+
+## Initial Setup and Navigation
+
+1. Navigate to X.com:
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+2. Check for and handle login walls (assuming already logged in):
+```javascript
+await puppeteer_evaluate(`
+  // Check if we're on a login page
+  if (document.querySelector('[data-testid="loginButton"]') || 
+      document.querySelector('[data-testid="login"]') ||
+      window.location.href.includes('login')) {
+    console.log('Login required - assuming already logged in');
+  } else {
+    console.log('Already logged in or no login required');
+  }
+`);
+```
+
+3. Wait for the main timeline to load:
+```javascript
+await puppeteer_waitForSelector_with_polling('[data-testid="primaryColumn"]', {
+  timeout: 10000,
+  pollingInterval: 500
+});
+```
+
+## Executing the Search
+
+4. Locate and click on the search icon/field:
+```javascript
+// Try multiple possible search selectors
+await puppeteer_evaluate(`
+  const searchSelectors = [
+    '[data-testid="SearchBox_Search_Input"]',
+    '[data-testid="AppTabBar_Explore_Link"]',
+    '[aria-label="Search query"]',
+    '[placeholder="Search"]',
+    '[data-testid="exploreSearchInput"]'
+  ];
+  
+  for (const selector of searchSelectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      element.scrollIntoView();
+      element.focus();
+      console.log('Found search element with selector: ' + selector);
+      return true;
+    }
+  }
+  
+  console.log('No search element found, trying alternative approach');
+  return false;
+`);
+```
+
+5. Click on the search field (if found):
+```javascript
+try {
+  // Try multiple possible selectors
+  await puppeteer_click('[data-testid="SearchBox_Search_Input"]');
+} catch (e) {
+  try {
+    await puppeteer_click('[data-testid="AppTabBar_Explore_Link"]');
+  } catch (e2) {
+    try {
+      await puppeteer_click('[aria-label="Search query"]');
+    } catch (e3) {
+      try {
+        await puppeteer_click('[placeholder="Search"]');
+      } catch (e4) {
+        console.log('Could not find search field, trying alternative approach');
+        await puppeteer_navigate('https://x.com/explore');
+      }
+    }
+  }
+}
+```
+
+6. Wait for search input to be available and enter search query:
+```javascript
+await puppeteer_waitForSelector_with_polling('[data-testid="SearchBox_Search_Input"]', {
+  timeout: 5000,
+  pollingInterval: 500
+});
+
+await puppeteer_fill('[data-testid="SearchBox_Search_Input"]', 'MCP');
+```
+
+7. Submit the search query:
+```javascript
+// Press Enter to submit search
+await puppeteer_evaluate(`
+  const searchInput = document.querySelector('[data-testid="SearchBox_Search_Input"]');
+  if (searchInput) {
+    // Create and dispatch an Enter key event
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      which: 13,
+      bubbles: true
+    });
+    searchInput.dispatchEvent(event);
+    
+    // Also try submitting any form the input might be in
+    const form = searchInput.closest('form');
+    if (form) form.submit();
+    
+    return true;
+  }
+  return false;
+`);
+
+// Wait for search results to load
+await puppeteer_waitForSelector_with_polling('[data-testid="cellInnerDiv"]', {
+  timeout: 10000,
+  pollingInterval: 500
+});
+```
+
+## Collecting and Analyzing Search Results
+
+8. Scroll to load more posts (to ensure we get at least 10):
+```javascript
+await puppeteer_evaluate(`
+  // Function to scroll down
+  

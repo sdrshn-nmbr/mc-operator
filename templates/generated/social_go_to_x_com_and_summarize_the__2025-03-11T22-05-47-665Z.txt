@@ -1,0 +1,114 @@
+# Generated Prompt
+# Original Command: go to x.com and summarize the first tweet in 1 line
+# Task Type: social
+# Generated: 2025-03-11T22:05:47.665Z
+# ===================================
+
+# Detailed Steps to Summarize the First Tweet on X.com
+
+## Step 1: Navigate to X.com
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+## Step 2: Handle Initial Prompts and Login Walls
+```javascript
+// Wait for page to load
+await puppeteer_waitForSelector_with_polling("body", { timeout: 10000 });
+
+// Check for and dismiss login prompt if it appears
+try {
+  await puppeteer_waitForSelector('div[role="dialog"]', { timeout: 5000 });
+  const hasLoginDialog = await puppeteer_evaluate(() => {
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    for (const dialog of dialogs) {
+      if (dialog.textContent.includes('Sign in') || dialog.textContent.includes('Log in')) {
+        return true;
+      }
+    }
+    return false;
+  });
+  
+  if (hasLoginDialog) {
+    // Try to find and click the "X" button to close the dialog
+    await puppeteer_evaluate(() => {
+      const closeButtons = Array.from(document.querySelectorAll('div[role="button"]'));
+      const xButton = closeButtons.find(btn => 
+        btn.innerHTML.includes('✕') || 
+        btn.innerHTML.includes('×') || 
+        btn.getAttribute('aria-label')?.includes('Close')
+      );
+      if (xButton) xButton.click();
+    });
+  }
+} catch (error) {
+  // No login dialog appeared, continue
+  console.log("No login dialog detected, continuing...");
+}
+```
+
+## Step 3: Check for Timeline Content and Wait for Tweets to Load
+```javascript
+// Wait for the timeline to load
+await puppeteer_waitForSelector_with_polling('div[data-testid="primaryColumn"]', { timeout: 15000 });
+
+// Wait for tweets to appear
+await puppeteer_waitForSelector_with_polling('article[data-testid="tweet"]', { timeout: 20000 });
+```
+
+## Step 4: Extract and Summarize the First Tweet
+```javascript
+// Extract the text content from the first tweet
+const firstTweetSummary = await puppeteer_evaluate(() => {
+  // Find all tweet articles
+  const tweetElements = document.querySelectorAll('article[data-testid="tweet"]');
+  
+  if (tweetElements.length === 0) {
+    return "No tweets found";
+  }
+  
+  const firstTweet = tweetElements[0];
+  
+  // Find the tweet text content
+  const tweetTextElement = firstTweet.querySelector('div[data-testid="tweetText"]');
+  if (!tweetTextElement) {
+    // If no text content, check if it's a media-only tweet
+    const hasMedia = firstTweet.querySelector('div[data-testid="tweetPhoto"], div[data-testid="videoPlayer"]');
+    if (hasMedia) {
+      return "Media-only tweet with no text";
+    }
+    return "Tweet found but no text content could be extracted";
+  }
+  
+  // Get the text content
+  let tweetText = tweetTextElement.textContent.trim();
+  
+  // Get author information
+  const authorElement = firstTweet.querySelector('div[data-testid="User-Name"]');
+  let authorInfo = "Unknown user";
+  if (authorElement) {
+    authorInfo = authorElement.textContent.split("@")[0].trim();
+  }
+  
+  // Summarize the tweet (truncate if too long)
+  const maxLength = 100;
+  let summary = tweetText;
+  if (summary.length > maxLength) {
+    summary = summary.substring(0, maxLength) + "...";
+  }
+  
+  return `${authorInfo}: ${summary}`;
+});
+
+// Take a screenshot of the first tweet for verification
+await puppeteer_screenshot("first_tweet.png");
+
+console.log("First Tweet Summary:", firstTweetSummary);
+```
+
+## Step 5: Handle Alternative Scenarios
+
+### If No Tweets Are Found in the Timeline
+```javascript
+// Check if we need to scroll to load content
+const needToScroll

@@ -1,0 +1,122 @@
+# Generated Prompt
+# Original Command: go to x.com (it should already be logged in) and search for "MCP". find and summarize your learnings from the top 10 posts returned by this search - scroll on the page if you need to
+# Task Type: social
+# Generated: 2025-03-10T19:24:15.069Z
+# ===================================
+
+# Detailed Instructions for X.com Search and Summarization
+
+## Preliminary Setup
+
+1. Start by navigating to X.com:
+   ```
+   await puppeteer_navigate({ url: 'https://x.com' });
+   ```
+
+2. Check if already logged in by looking for profile elements:
+   ```
+   await puppeteer_evaluate({
+     script: `
+       const isLoggedIn = document.querySelector('[data-testid="AppTabBar_Profile_Link"]') !== null;
+       isLoggedIn
+     `
+   });
+   ```
+
+3. If not logged in, stop and notify the user that login is required:
+   ```
+   await puppeteer_evaluate({
+     script: `
+       if (!document.querySelector('[data-testid="AppTabBar_Profile_Link"]')) {
+         console.log("ERROR: Not logged into X.com. Please log in first.");
+       }
+     `
+   });
+   ```
+
+## Search Execution
+
+4. Locate and click on the search icon/explore tab:
+   ```
+   await puppeteer_waitForSelector({ selector: '[data-testid="AppTabBar_Explore_Link"]' });
+   await puppeteer_click({ selector: '[data-testid="AppTabBar_Explore_Link"]' });
+   ```
+
+5. Wait for the search input to appear and focus on it:
+   ```
+   await puppeteer_waitForSelector({ selector: '[data-testid="SearchBox_Search_Input"]' });
+   await puppeteer_click({ selector: '[data-testid="SearchBox_Search_Input"]' });
+   ```
+
+6. Enter the search query "MCP":
+   ```
+   await puppeteer_fill({ selector: '[data-testid="SearchBox_Search_Input"]', value: 'MCP' });
+   ```
+
+7. Submit the search:
+   ```
+   await puppeteer_evaluate({
+     script: `
+       const searchInput = document.querySelector('[data-testid="SearchBox_Search_Input"]');
+       if (searchInput) {
+         searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+       }
+     `
+   });
+   ```
+
+8. Ensure the search was submitted by checking for the URL change or results:
+   ```
+   await puppeteer_waitForSelector({ 
+     selector: '[data-testid="cellInnerDiv"]', 
+     timeout: 10000 
+   });
+   ```
+
+## Content Collection
+
+9. Wait for search results to load:
+   ```
+   await puppeteer_waitForSelector_with_polling({
+     selector: '[data-testid="tweet"]',
+     timeout: 15000,
+     pollingInterval: 1000
+   });
+   ```
+
+10. Collect data from the first 10 posts:
+    ```
+    await puppeteer_evaluate({
+      script: `
+        function extractPostData(post) {
+          const userElement = post.querySelector('[data-testid="User-Name"]');
+          const username = userElement ? userElement.textContent : 'Unknown';
+          
+          const contentElement = post.querySelector('[data-testid="tweetText"]');
+          const content = contentElement ? contentElement.textContent : 'No content';
+          
+          const timeElement = post.querySelector('time');
+          const timestamp = timeElement ? timeElement.getAttribute('datetime') : 'Unknown time';
+          
+          const likeCount = post.querySelector('[data-testid="like"]')?.textContent || '0';
+          const retweetCount = post.querySelector('[data-testid="retweet"]')?.textContent || '0';
+          
+          return {
+            username,
+            content,
+            timestamp,
+            metrics: {
+              likes: likeCount,
+              retweets: retweetCount
+            }
+          };
+        }
+        
+        const posts = Array.from(document.querySelectorAll('[data-testid="tweet"]')).slice(0, 10);
+        const postData = posts.map(extractPostData);
+        
+        // Store data in window object for later retrieval
+        window.collectedPosts = postData;
+        
+        // Return the number of posts collected
+        posts.length;

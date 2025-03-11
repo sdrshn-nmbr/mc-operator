@@ -1,0 +1,119 @@
+# Generated Prompt
+# Original Command: go to x.com (it should already be logged in) and search for "MCP". find and summarize your learnings from the top 10 posts returned by this search - scroll on the page if you need to
+# Task Type: social
+# Generated: 2025-03-11T05:40:58.570Z
+# ===================================
+
+# Detailed Steps for Searching "MCP" on X.com and Summarizing Top 10 Posts
+
+## Initial Setup and Navigation
+
+1. Navigate to X.com (formerly Twitter)
+```javascript
+await puppeteer_navigate({ url: "https://x.com" });
+```
+
+2. Wait for the page to load completely
+```javascript
+await puppeteer_waitForSelector({ selector: "body", timeout: 10000 });
+```
+
+3. Check if already logged in by looking for profile elements
+```javascript
+const isLoggedIn = await puppeteer_evaluate({
+  script: `
+    const homeLink = document.querySelector('a[data-testid="AppTabBar_Home_Link"]');
+    const profileIcon = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]');
+    return !!(homeLink && profileIcon);
+  `
+});
+```
+
+4. If not logged in, handle the situation
+```javascript
+if (!isLoggedIn) {
+  console.log("Not logged in. The script expects to be already logged in as specified.");
+  // Take a screenshot to show the current state
+  await puppeteer_screenshot({ path: "not_logged_in.png" });
+  throw new Error("Not logged in to X.com. Please log in first.");
+}
+```
+
+## Search for "MCP"
+
+5. Locate and click on the search icon/explore tab
+```javascript
+await puppeteer_waitForSelector({ 
+  selector: 'a[data-testid="AppTabBar_Explore_Link"], [aria-label="Search"], [data-testid="SearchBox_Search_Input"]', 
+  timeout: 5000 
+});
+
+await puppeteer_click({ 
+  selector: 'a[data-testid="AppTabBar_Explore_Link"], [aria-label="Search"], [data-testid="SearchBox_Search_Input"]' 
+});
+```
+
+6. Wait for search input to be available and focus it
+```javascript
+await puppeteer_waitForSelector({ 
+  selector: 'input[data-testid="SearchBox_Search_Input"]', 
+  timeout: 5000 
+});
+
+await puppeteer_click({ 
+  selector: 'input[data-testid="SearchBox_Search_Input"]' 
+});
+```
+
+7. Clear any existing search text and enter "MCP"
+```javascript
+await puppeteer_fill({ 
+  selector: 'input[data-testid="SearchBox_Search_Input"]', 
+  value: "MCP" 
+});
+```
+
+8. Submit the search by pressing Enter
+```javascript
+await puppeteer_evaluate({
+  script: `
+    const searchInput = document.querySelector('input[data-testid="SearchBox_Search_Input"]');
+    if (searchInput) {
+      searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+    }
+  `
+});
+```
+
+9. Alternative search submission if the above doesn't work
+```javascript
+await puppeteer_evaluate({
+  script: `
+    // Try to find and click the search button
+    const searchButton = Array.from(document.querySelectorAll('div[role="button"]')).find(el => 
+      el.textContent.includes('Search') || 
+      el.getAttribute('aria-label')?.includes('Search')
+    );
+    if (searchButton) searchButton.click();
+  `
+});
+```
+
+## Wait for Search Results
+
+10. Wait for search results to load
+```javascript
+await puppeteer_waitForSelector_with_polling({ 
+  selector: 'article[data-testid="tweet"], div[data-testid="cellInnerDiv"]', 
+  timeout: 10000,
+  pollingInterval: 500
+});
+```
+
+11. Ensure we're on the "Latest" tab for most relevant results
+```javascript
+await puppeteer_evaluate({
+  script: `
+    // Try to find and click the "Latest" tab if we're not on it
+    const tabLinks = Array.from(document.querySelectorAll('a[role="tab"]'));
+    const latestTab = tabLinks.find(tab => tab.textContent.includes('Latest'));

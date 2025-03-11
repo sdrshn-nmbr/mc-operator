@@ -22,6 +22,7 @@
     "puppeteer": "^24.4.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/jest": "^29.4.0",
     "@types/node": "^22.13.9",
     "@typescript-eslint/eslint-plugin": "^5.53.0",

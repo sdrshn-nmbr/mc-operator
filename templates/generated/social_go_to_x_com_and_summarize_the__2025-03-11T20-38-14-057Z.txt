@@ -1,0 +1,121 @@
+# Generated Prompt
+# Original Command: go to x.com and summarize the first tweet you see
+# Task Type: social
+# Generated: 2025-03-11T20:38:14.059Z
+# ===================================
+
+# Detailed Steps for Summarizing First Tweet on X.com
+
+Here's a comprehensive automation plan to navigate to X.com and summarize the first tweet:
+
+## 1. Navigate to X.com
+
+```javascript
+await puppeteer_navigate({ url: "https://x.com" });
+```
+
+## 2. Handle Potential Login Wall
+
+```javascript
+// Wait a moment for any login wall to appear
+await puppeteer_waitForSelector_with_polling({
+  selector: "body",
+  timeout: 5000,
+  pollingInterval: 500
+});
+
+// Check if login wall exists and handle it
+await puppeteer_evaluate({
+  script: `
+    // Look for login wall elements
+    const loginWall = document.querySelector('[data-testid="loginDialog"], [aria-label="Login form"], [role="dialog"][aria-modal="true"]');
+    
+    if (loginWall) {
+      // Try to find and click the "X" button or close button
+      const closeButton = document.querySelector('[aria-label="Close"], [data-testid="closeButton"], button[aria-label*="close" i]');
+      if (closeButton) {
+        closeButton.click();
+        return "Login wall closed";
+      }
+      
+      // Try to find "Not now" or similar buttons
+      const notNowButton = Array.from(document.querySelectorAll('span')).find(el => 
+        el.textContent && (el.textContent.toLowerCase().includes('not now') || 
+        el.textContent.toLowerCase().includes('skip') ||
+        el.textContent.toLowerCase().includes('close')));
+      
+      if (notNowButton && notNowButton.closest('button')) {
+        notNowButton.closest('button').click();
+        return "Clicked 'Not now' button";
+      }
+      
+      // If we can't close it, we'll need to work with what's visible
+      return "Login wall present but couldn't close";
+    }
+    
+    return "No login wall detected";
+  `
+});
+```
+
+## 3. Wait for Timeline to Load
+
+```javascript
+// Wait for the main timeline to load
+await puppeteer_waitForSelector({
+  selector: '[data-testid="primaryColumn"], [aria-label="Timeline: Your Home Timeline"], [data-testid="tweet"]',
+  timeout: 10000
+});
+```
+
+## 4. Locate and Extract the First Tweet
+
+```javascript
+// Extract the first tweet's content
+const tweetData = await puppeteer_evaluate({
+  script: `
+    // Try multiple selectors to find tweets
+    const tweetSelectors = [
+      '[data-testid="tweet"]', 
+      '[data-testid="tweetText"]',
+      'article[role="article"]',
+      '[data-testid="cellInnerDiv"] article'
+    ];
+    
+    let firstTweet = null;
+    
+    // Try each selector until we find a tweet
+    for (const selector of tweetSelectors) {
+      const tweets = document.querySelectorAll(selector);
+      if (tweets && tweets.length > 0) {
+        firstTweet = tweets[0];
+        break;
+      }
+    }
+    
+    if (!firstTweet) {
+      return { error: "No tweets found" };
+    }
+    
+    // Extract tweet text
+    let tweetText = "";
+    const tweetTextElement = firstTweet.querySelector('[data-testid="tweetText"]');
+    if (tweetTextElement) {
+      tweetText = tweetTextElement.innerText;
+    } else {
+      // Fallback: try to get any text content from the tweet
+      const paragraphs = firstTweet.querySelectorAll('p, span');
+      if (paragraphs.length > 0) {
+        // Combine all paragraph texts
+        tweetText = Array.from(paragraphs)
+          .map(p => p.innerText)
+          .filter(text => text.length > 0)
+          .join(' ');
+      }
+    }
+    
+    // Extract username/handle
+    let username = "";
+    const usernameElement = firstTweet.querySelector('[data-testid="User-Name"]');
+    if (usernameElement) {
+      const

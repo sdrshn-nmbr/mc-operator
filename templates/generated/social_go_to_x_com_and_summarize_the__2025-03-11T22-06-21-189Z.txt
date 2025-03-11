@@ -1,0 +1,103 @@
+# Generated Prompt
+# Original Command: go to x.com and summarize the first tweet in 1 line
+# Task Type: social
+# Generated: 2025-03-11T22:06:21.189Z
+# ===================================
+
+# Step-by-Step Instructions to Summarize the First Tweet on X.com
+
+## 1. Navigate to X.com
+
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+## 2. Handle Initial Page Load and Possible Dialogs
+
+```javascript
+// Wait for the page to load
+await puppeteer_waitForSelector_with_polling("body", 1000, 30000);
+
+// Check for and close any cookie consent or login prompts
+await puppeteer_evaluate(`
+  // Close cookie banner if present
+  const cookieBanners = Array.from(document.querySelectorAll('div[role="dialog"]')).filter(el => 
+    el.textContent.includes('cookie') || el.textContent.includes('Cookie'));
+  cookieBanners.forEach(banner => {
+    const closeButtons = Array.from(banner.querySelectorAll('button')).filter(btn => 
+      btn.textContent.includes('Accept') || btn.textContent.includes('Close') || 
+      btn.textContent.includes('I agree') || btn.textContent.includes('OK'));
+    if (closeButtons.length > 0) closeButtons[0].click();
+  });
+  
+  // Check for login wall and add an ID to it if found
+  const loginWall = document.querySelector('div[aria-labelledby="modal-header"]');
+  if (loginWall) loginWall.id = 'login-wall';
+`);
+
+// Handle login wall if present
+await puppeteer_evaluate(`
+  const loginButtons = Array.from(document.querySelectorAll('a,button,div[role="button"]')).filter(el => 
+    el.textContent.includes('Not now') || el.textContent.includes('Skip for now') || 
+    el.textContent.includes('Close') || el.textContent.includes('Later'));
+  if (loginButtons.length > 0) loginButtons[0].click();
+`);
+```
+
+## 3. Locate and Process the First Tweet
+
+```javascript
+// Wait for timeline to load
+await puppeteer_waitForSelector_with_polling('article[data-testid="tweet"]', 1000, 15000);
+
+// Extract the first tweet's text
+const firstTweetSummary = await puppeteer_evaluate(`
+  // Find the first tweet
+  const tweets = document.querySelectorAll('article[data-testid="tweet"]');
+  
+  if (tweets.length === 0) {
+    return "No tweets found";
+  }
+  
+  const firstTweet = tweets[0];
+  
+  // Extract the tweet text
+  const tweetTextElement = firstTweet.querySelector('div[data-testid="tweetText"]');
+  let tweetText = tweetTextElement ? tweetTextElement.textContent.trim() : "";
+  
+  // If no text was found, try alternative selectors
+  if (!tweetText) {
+    // Try finding any paragraph element in the tweet
+    const paragraphs = firstTweet.querySelectorAll('span');
+    for (const p of paragraphs) {
+      const text = p.textContent.trim();
+      if (text && text.length > 10) { // Assuming meaningful content has some length
+        tweetText = text;
+        break;
+      }
+    }
+  }
+  
+  // Get author information
+  const authorElement = firstTweet.querySelector('div[data-testid="User-Name"]');
+  const author = authorElement ? authorElement.textContent.trim() : "Unknown author";
+  
+  // Create a one-line summary (limit to ~100 chars)
+  let summary = tweetText;
+  if (summary.length > 100) {
+    summary = summary.substring(0, 97) + "...";
+  }
+  
+  // Replace multiple spaces/newlines with single space
+  summary = summary.replace(/\\s+/g, ' ');
+  
+  // Return the summary with author
+  return \`\${author}: \${summary}\`;
+`);
+
+// Take a screenshot of the first tweet for verification
+await puppeteer_screenshot("first_tweet.png");
+
+// Output the summary
+console.log("One-line summary of the first tweet:");
+console.log(firstTweetSummary);

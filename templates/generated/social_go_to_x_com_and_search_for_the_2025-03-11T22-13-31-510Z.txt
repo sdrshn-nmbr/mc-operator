@@ -1,3 +1,9 @@
+# Generated Prompt
+# Original Command: go to x.com and search for the word MCP. then summarize the first tween in 1 line
+# Task Type: social
+# Generated: 2025-03-11T22:13:31.511Z
+# ===================================
+
 # X.com Search and Summarize Automation
 
 Here are detailed step-by-step instructions for searching for "MCP" on X.com and summarizing the first tweet:

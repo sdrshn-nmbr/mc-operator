@@ -1,0 +1,107 @@
+# Generated Prompt
+# Original Command: go to x.com. it should be a logged in instance. then scroll until you find a tweet about MCP.
+# Task Type: social
+# Generated: 2025-03-10T05:56:04.347Z
+# ===================================
+
+# Detailed Instructions for Finding Tweets about a Specific Username and Content on X.com
+
+## Overview
+These instructions will guide you through automating the process of finding tweets related to a specific username and content on X.com, handling authentication, dynamic content loading, and various edge cases.
+
+## Step-by-Step Instructions
+
+### 1. Navigate to X.com
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+### 2. Handle Initial Authentication and Popups
+
+```javascript
+// Wait for the page to load
+await puppeteer_waitForSelector("body", { timeout: 10000 });
+
+// Check if there's a login wall and handle it
+await puppeteer_evaluate(`
+  // Check for login wall
+  const loginWall = document.querySelector('[data-testid="loginButton"]') || 
+                   document.querySelector('[data-testid="SignupButton"]') ||
+                   document.querySelector('[aria-label="Close"]');
+  
+  // If there's a close button for a popup, click it
+  if (loginWall && loginWall.getAttribute('aria-label') === 'Close') {
+    loginWall.click();
+  }
+`);
+
+// Check for cookie consent dialog and accept if present
+await puppeteer_evaluate(`
+  const cookieButton = Array.from(document.querySelectorAll('button')).find(el => 
+    el.textContent.includes('Accept') || el.textContent.includes('Cookie') || el.textContent.includes('Agree')
+  );
+  if (cookieButton) cookieButton.click();
+`);
+```
+
+### 3. Check Login Status
+
+```javascript
+// Check if already logged in
+const isLoggedIn = await puppeteer_evaluate(`
+  // Look for elements that indicate logged-in state
+  const homeLink = document.querySelector('[data-testid="AppTabBar_Home_Link"]');
+  const profileButton = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+  
+  homeLink !== null || profileButton !== null;
+`);
+
+// If not logged in, inform the user
+if (!isLoggedIn) {
+  console.log("Not logged in to X.com. Please run this script with a browser session that's already authenticated.");
+  // Take a screenshot to show the current state
+  await puppeteer_screenshot("not_logged_in.png");
+  return;
+}
+```
+
+### 4. Navigate to Search for the Username and Content
+
+```javascript
+// Click on the search icon or navigate directly to search
+await puppeteer_waitForSelector('[data-testid="AppTabBar_Explore_Link"]', { timeout: 5000 });
+await puppeteer_click('[data-testid="AppTabBar_Explore_Link"]');
+
+// Wait for the search input to appear
+await puppeteer_waitForSelector('[data-testid="SearchBox_Search_Input"]', { timeout: 5000 });
+
+// Enter search query combining username and content
+await puppeteer_fill('[data-testid="SearchBox_Search_Input"]', '{{username}} {{content}}');
+
+// Press Enter to search
+await puppeteer_evaluate(`
+  const searchInput = document.querySelector('[data-testid="SearchBox_Search_Input"]');
+  if (searchInput) {
+    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+  }
+`);
+
+// Wait for search results
+await puppeteer_waitForSelector('[data-testid="cellInnerDiv"]', { timeout: 10000 });
+```
+
+### 5. Filter to Latest Tweets (More likely to find specific content)
+
+```javascript
+// Look for the "Latest" tab and click it
+await puppeteer_evaluate(`
+  // Try multiple possible selectors for the Latest tab
+  const latestTab = Array.from(document.querySelectorAll('a[role="tab"]')).find(el => 
+    el.textContent.includes('Latest')
+  );
+  
+  if (latestTab) latestTab.click();
+`);
+
+// Wait for the latest tweets to load
+await puppeteer_waitForSelector_with_polling('[data-testid="tweet"]', { timeout: 10000, pollingInterval: 500 

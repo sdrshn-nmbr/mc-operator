@@ -112,6 +112,34 @@ const TOOLS = [
       required: ["selector"]
     }
   },
+  {
+    name: "puppeteer_keyboard_press",
+    description: "Press a keyboard key, useful for form submissions and navigation",
+    inputSchema: {
+      type: "object",
+      properties: {
+        key: { type: "string", description: "Key to press (e.g., 'Enter', 'Tab', 'ArrowDown')" },
+        selector: { type: "string", description: "Optional: focus on this element before pressing key" },
+        waitForNavigation: { type: "boolean", description: "Whether to wait for navigation after key press" }
+      },
+      required: ["key"]
+    }
+  },
+  {
+    name: "puppeteer_reliable_form_submit",
+    description: "Submit a form using multiple methods for maximum reliability",
+    inputSchema: {
+      type: "object",
+      properties: {
+        inputSelector: { type: "string", description: "Selector for the input field" },
+        submitButtonSelector: { type: "string", description: "Optional: selector for a submit button" },
+        formSelector: { type: "string", description: "Optional: selector for the form element" },
+        expectedResultSelector: { type: "string", description: "Selector to wait for after submission to verify success" },
+        waitForNavigation: { type: "boolean", description: "Whether to wait for navigation after submission" }
+      },
+      required: ["inputSelector", "expectedResultSelector"]
+    }
+  },
 ];
 
 // Global browser variables
@@ -664,6 +692,217 @@ async function handleToolCall(name: string, args: any) {
           console.error(`Error clicking without target: ${error}`);
           return { 
             content: [{ type: "text", text: `Error clicking ${selector}: ${error.message}` }],
+            isError: true 
+          };
+        }
+      }
+      case "puppeteer_keyboard_press": {
+        const { key, selector, waitForNavigation } = args;
+        try {
+          if (selector) {
+            await page.focus(selector);
+          }
+          
+          if (waitForNavigation) {
+            await Promise.all([
+              page.waitForNavigation({ waitUntil: 'networkidle0' }),
+              page.keyboard.press(key)
+            ]);
+          } else {
+            await page.keyboard.press(key);
+          }
+          
+          return { 
+            content: [{ type: "text", text: `Pressed ${key} key${selector ? ` on ${selector}` : ''}` }],
+            isError: false 
+          };
+        } catch (error: any) {
+          return { 
+            content: [{ type: "text", text: `Error pressing ${key} key: ${error.message}` }],
+            isError: true 
+          };
+        }
+      }
+      case "puppeteer_reliable_form_submit": {
+        const { inputSelector, submitButtonSelector, formSelector, expectedResultSelector, waitForNavigation } = args;
+        try {
+          // 1. Focus on the input element
+          await page.focus(inputSelector);
+          console.log(`Focused on input field: ${inputSelector}`);
+          
+          // 2. Try multiple approaches for submission in sequence
+          let submissionSuccessful = false;
+          let errorMessages: string[] = [];
+          
+          // Method 1: Try clicking the submit button if provided
+          if (submitButtonSelector) {
+            try {
+              // Check if button exists
+              const submitButtonExists = await page.evaluate(
+                (selector) => !!document.querySelector(selector),
+                submitButtonSelector
+              );
+              
+              if (submitButtonExists) {
+                if (waitForNavigation) {
+                  await Promise.all([
+                    page.waitForNavigation({ waitUntil: 'networkidle0' }),
+                    page.click(submitButtonSelector)
+                  ]);
+                } else {
+                  await page.click(submitButtonSelector);
+                }
+                console.log(`Clicked submit button: ${submitButtonSelector}`);
+                
+                // Check if expected result appears
+                try {
+                  await page.waitForSelector(expectedResultSelector, { timeout: 5000 });
+                  submissionSuccessful = true;
+                  console.log(`Form submission successful via submit button`);
+                } catch (resultError: any) {
+                  errorMessages.push(`Button click didn't produce expected results: ${resultError.message}`);
+                }
+              }
+            } catch (buttonError: any) {
+              errorMessages.push(`Error clicking submit button: ${buttonError.message}`);
+            }
+          }
+          
+          // Method 2: Try submitting the form directly
+          if (!submissionSuccessful && formSelector) {
+            try {
+              const formSubmitResult = await page.evaluate((formSel) => {
+                const form = document.querySelector(formSel);
+                if (!form) return false;
+                form.submit();
+                return true;
+              }, formSelector);
+              
+              if (formSubmitResult) {
+                if (waitForNavigation) {
+                  await page.waitForNavigation({ waitUntil: 'networkidle0' });
+                }
+                
+                // Check if expected result appears
+                try {
+                  await page.waitForSelector(expectedResultSelector, { timeout: 5000 });
+                  submissionSuccessful = true;
+                  console.log(`Form submission successful via form.submit()`);
+                } catch (resultError: any) {
+                  errorMessages.push(`Form submission didn't produce expected results: ${resultError.message}`);
+                }
+              }
+            } catch (formError: any) {
+              errorMessages.push(`Error submitting form: ${formError.message}`);
+            }
+          }
+          
+          // Method 3: Try using keyboard Enter press
+          if (!submissionSuccessful) {
+            try {
+              if (waitForNavigation) {
+                await Promise.all([
+                  page.waitForNavigation({ waitUntil: 'networkidle0' }),
+                  page.keyboard.press('Enter')
+                ]);
+              } else {
+                await page.keyboard.press('Enter');
+              }
+              
+              // Check if expected result appears
+              try {
+                await page.waitForSelector(expectedResultSelector, { timeout: 5000 });
+                submissionSuccessful = true;
+                console.log(`Form submission successful via Enter key`);
+              } catch (resultError: any) {
+                errorMessages.push(`Enter key didn't produce expected results: ${resultError.message}`);
+              }
+            } catch (keyError: any) {
+              errorMessages.push(`Error pressing Enter key: ${keyError.message}`);
+            }
+          }
+          
+          // Method 4: Try JavaScript event dispatch as a last resort
+          if (!submissionSuccessful) {
+            try {
+              const jsSubmitResult = await page.evaluate((inputSel) => {
+                const input = document.querySelector(inputSel);
+                if (!input) return false;
+                
+                // Try keypress
+                const keypressEvent = new KeyboardEvent('keypress', {
+                  key: 'Enter',
+                  code: 'Enter',
+                  keyCode: 13,
+                  which: 13,
+                  bubbles: true
+                });
+                input.dispatchEvent(keypressEvent);
+                
+                // Also try keydown
+                const keydownEvent = new KeyboardEvent('keydown', {
+                  key: 'Enter',
+                  code: 'Enter',
+                  keyCode: 13,
+                  which: 13,
+                  bubbles: true
+                });
+                input.dispatchEvent(keydownEvent);
+                
+                // Find parent form if any and submit it
+                let parentForm = input.closest('form');
+                if (parentForm) {
+                  try {
+                    parentForm.submit();
+                    return true;
+                  } catch (e) {
+                    // Form submit might fail silently
+                  }
+                }
+                
+                return true;
+              }, inputSelector);
+              
+              if (jsSubmitResult) {
+                if (waitForNavigation) {
+                  await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 5000 }).catch(() => {});
+                }
+                
+                // Check if expected result appears
+                try {
+                  await page.waitForSelector(expectedResultSelector, { timeout: 5000 });
+                  submissionSuccessful = true;
+                  console.log(`Form submission successful via JavaScript events`);
+                } catch (resultError: any) {
+                  errorMessages.push(`JavaScript events didn't produce expected results: ${resultError.message}`);
+                }
+              }
+            } catch (jsError: any) {
+              errorMessages.push(`Error with JavaScript event submission: ${jsError.message}`);
+            }
+          }
+          
+          // Final result
+          if (submissionSuccessful) {
+            return { 
+              content: [{ 
+                type: "text", 
+                text: `Successfully submitted form with input ${inputSelector}` 
+              }],
+              isError: false 
+            };
+          } else {
+            return { 
+              content: [{ 
+                type: "text", 
+                text: `Failed to submit form despite multiple attempts. Errors: ${errorMessages.join('; ')}` 
+              }],
+              isError: true 
+            };
+          }
+        } catch (error: any) {
+          return { 
+            content: [{ type: "text", text: `Error with reliable form submit: ${error.message}` }],
             isError: true 
           };
         }

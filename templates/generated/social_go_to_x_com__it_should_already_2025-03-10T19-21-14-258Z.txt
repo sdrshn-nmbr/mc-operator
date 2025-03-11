@@ -1,0 +1,116 @@
+# Generated Prompt
+# Original Command: go to x.com (it should already be logged in) and search for "MCP". find and summarize your learnings from the top 10 posts returned by this search - scroll on the page if you need to
+# Task Type: social
+# Generated: 2025-03-10T19:21:14.260Z
+# ===================================
+
+# X.com Search and Summarize Automation Instructions
+
+Below are detailed steps to search for "MCP" on X.com and summarize the top 10 posts:
+
+## 1. Navigate to X.com
+
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+## 2. Handle Authentication and Initial State
+
+```javascript
+// Wait for the page to load
+await puppeteer_waitForSelector("body", { timeout: 10000 });
+
+// Check if already logged in (look for home timeline)
+const isLoggedIn = await puppeteer_evaluate(() => {
+  return document.querySelector('[data-testid="primaryColumn"]') !== null;
+});
+
+// If not logged in, we need to notify the user
+if (!isLoggedIn) {
+  console.log("Not logged in to X.com. Please log in first and retry.");
+  return;
+}
+```
+
+## 3. Locate and Use the Search Functionality
+
+```javascript
+// Try multiple search input selectors as they can vary
+await puppeteer_waitForSelector_with_polling('[data-testid="SearchBox_Search_Input"], input[placeholder*="Search"], [aria-label*="Search"]', { timeout: 10000 });
+
+// Try the primary search input
+try {
+  await puppeteer_click('[data-testid="SearchBox_Search_Input"]');
+} catch (e) {
+  // Fallback to other potential search inputs
+  try {
+    await puppeteer_click('input[placeholder*="Search"]');
+  } catch (e2) {
+    await puppeteer_click('[aria-label*="Search"]');
+  }
+}
+
+// Clear any existing search text and enter our query
+await puppeteer_evaluate(() => {
+  const searchInputs = document.querySelectorAll('[data-testid="SearchBox_Search_Input"], input[placeholder*="Search"], [aria-label*="Search"]');
+  for (const input of searchInputs) {
+    if (input.tagName === 'INPUT') {
+      input.value = '';
+    }
+  }
+});
+
+// Type the search query
+await puppeteer_fill('[data-testid="SearchBox_Search_Input"], input[placeholder*="Search"], [aria-label*="Search"]', 'MCP');
+
+// Submit search using multiple approaches for reliability
+// First try pressing Enter via puppeteer keyboard
+await puppeteer_evaluate(() => {
+  const searchEvent = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    code: 'Enter',
+    which: 13,
+    keyCode: 13,
+    bubbles: true
+  });
+  
+  const searchInputs = document.querySelectorAll('[data-testid="SearchBox_Search_Input"], input[placeholder*="Search"], [aria-label*="Search"]');
+  for (const input of searchInputs) {
+    input.dispatchEvent(searchEvent);
+  }
+});
+
+// Wait a moment to see if search was submitted
+await puppeteer_evaluate(() => new Promise(resolve => setTimeout(resolve, 1000)));
+
+// Check if search was successful by looking for search results
+const searchSubmitted = await puppeteer_evaluate(() => {
+  return document.querySelector('[data-testid="cellInnerDiv"]') !== null ||
+         window.location.href.includes('/search');
+});
+
+// If not submitted, try clicking search button
+if (!searchSubmitted) {
+  try {
+    await puppeteer_click('[data-testid="searchButton"]');
+  } catch (e) {
+    console.log("Could not find search button, trying alternative methods");
+    
+    // Try submitting the form if the search is in a form
+    await puppeteer_evaluate(() => {
+      const searchInput = document.querySelector('[data-testid="SearchBox_Search_Input"], input[placeholder*="Search"], [aria-label*="Search"]');
+      if (searchInput) {
+        const form = searchInput.closest('form');
+        if (form) form.submit();
+      }
+    });
+  }
+}
+```
+
+## 4. Ensure Search Results Are Shown
+
+```javascript
+// Wait for search results to load
+await puppeteer_waitForSelector_with_polling('[data-testid="cellInnerDiv"]', { 
+  timeout: 15000,

@@ -1,11 +1,24 @@
-I need to {{action}} on {{platform}} related to {{username}} {{content}}.
+I need to {{action}} on {{platform}}{{#username}} related to {{username}}{{/username}}{{#content}} {{content}}{{/content}}.
 
 Please provide detailed step-by-step instructions for automating this social media interaction, including:
 
 1. Navigating to the {{platform}} website
 2. Handling any login or authentication requirements (without submitting credentials)
+{{#username}}
 3. Finding {{username}}'s profile or content
 4. Executing the requested {{action}} (summarize, view, scroll, etc.)
+{{/username}}
+{{^username}}
+3. {{#query}}Searching for "{{query}}"{{/query}}{{^query}}Using the platform's search functionality{{/query}}
+   - Locate search input field (try various selectors as search boxes may change)
+   - Enter search query 
+   - Submit search using multiple methods for reliability:
+     a. First try clicking a dedicated search button/icon if available
+     b. Then try submitting the search form using puppeteer_evaluate
+     c. If neither works, try pressing Enter key with puppeteer_keyboard_press
+   - Always verify search was successfully submitted by checking for results
+4. Executing the requested {{action}} (search, summarize, view, scroll, etc.)
+{{/username}}
 5. Capturing relevant information or content
 6. Handling dynamic content loading and pagination
 7. Extracting and presenting the required information
@@ -15,7 +28,14 @@ Consider these important aspects:
 - Login walls and cookie consent dialogs
 - Rate limiting and anti-automation measures
 - Timeline-based content that may change between visits
-- Best practices for finding and identifying specific posts or content
+{{#username}}
+- Best practices for finding specific user profiles or their content
+{{/username}}
+{{^username}}
+- Best practices for executing and filtering search results
+- Platform-specific search behavior and submission methods
+- Handling search auto-suggestions that may interfere with submission
+{{/username}}
 - Methods for extracting text, images, or engagement metrics
 
 Provide specific selectors for each step, with alternate approaches if primary selectors fail.

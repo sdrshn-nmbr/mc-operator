@@ -38,9 +38,28 @@ Your instructions should be precise, covering all edge cases, and optimized for 
    - End evaluate scripts with the expression to evaluate
    - Keep DOM manipulations simple
 
-6. Format your instructions as clear, numbered steps with explanatory comments.
-7. Include resilient error handling for common scenarios like popups.
-8. Provide detailed guidance on how to handle unexpected situations.
+6. For search forms and input submissions:
+   - Always attempt multiple approaches for submitting search forms
+   - First, check for and click a dedicated search button if available
+   - If no button, try to submit the form element directly
+   - As a fallback, use Puppeteer's keyboard press functionality
+   - NEVER rely solely on JavaScript keyboard events which are often unreliable
+   - Verify search submission success by checking for results or URL changes
+
+7. Format your instructions as clear, numbered steps with explanatory comments.
+8. Include resilient error handling for common scenarios like popups.
+9. Provide detailed guidance on how to handle unexpected situations.
+
+## Task-Specific Guidelines
+1. For social media tasks:
+   - If searching for content (e.g., hashtags, keywords), don't ask for a username unless specifically required
+   - For profile-specific tasks, focus on finding and analyzing that user's content
+   - Don't prompt for additional information that wasn't in the original command
+
+2. For all tasks:
+   - Focus only on the parameters that were provided in the command
+   - Never ask for information that isn't necessary to complete the task
+   - If a parameter is missing but can be reasonably inferred, proceed without asking for it
 
 Remember that the user's command is: {{command}}
 Format your response as precise, executable steps that handle all edge cases. 

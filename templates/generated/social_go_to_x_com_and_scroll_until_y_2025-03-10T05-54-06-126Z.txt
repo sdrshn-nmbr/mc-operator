@@ -1,0 +1,100 @@
+# Generated Prompt
+# Original Command: go to x.com and scroll until you find a tweet about MCP. then summarize what it says
+# Task Type: social
+# Generated: 2025-03-10T05:54:06.126Z
+# ===================================
+
+# X.com Automation: Finding Tweets Related to a Specific Username and Content
+
+I'll provide detailed step-by-step instructions for automating the process of finding tweets related to a specific username and content on X.com.
+
+## Step 1: Navigate to X.com
+```javascript
+await puppeteer_navigate("https://x.com");
+```
+
+## Step 2: Handle Initial Popups and Consent Dialogs
+```javascript
+// Wait for page to load
+await puppeteer_waitForSelector("body", { timeout: 10000 });
+
+// Check for and handle cookie consent dialog
+try {
+  await puppeteer_waitForSelector('[data-testid="Dialog"], [aria-label="Close"]', { timeout: 5000 });
+  await puppeteer_click('[data-testid="Dialog"] button, [aria-label="Close"]');
+} catch (error) {
+  console.log("No cookie/signup dialog found or it cannot be closed automatically.");
+}
+```
+
+## Step 3: Handle Login Wall (if present)
+```javascript
+// Check if login wall appears and close it if possible
+try {
+  await puppeteer_waitForSelector('[data-testid="loginButton"], .r-1kihuf0', { timeout: 5000 });
+  
+  // Use JavaScript to remove the login wall if present
+  await puppeteer_evaluate(`
+    // Try to remove login modal if it exists
+    const loginModal = document.querySelector('[data-testid="sheetDialog"]');
+    if (loginModal) loginModal.remove();
+    
+    // Try to remove any fixed position overlays
+    document.querySelectorAll('div[style*="position: fixed"]').forEach(el => {
+      if (el.innerText.includes('Log in') || el.innerText.includes('Sign up')) {
+        el.remove();
+      }
+    });
+    
+    // Remove body style that prevents scrolling
+    document.body.style.overflow = 'auto';
+  `);
+} catch (error) {
+  console.log("No login wall detected or it cannot be handled automatically.");
+}
+```
+
+## Step 4: Search for the Username
+```javascript
+// Click on the search icon or search box
+try {
+  // Try the search icon first
+  await puppeteer_waitForSelector('[data-testid="AppTabBar_Explore_Link"], [aria-label="Search and explore"]', { timeout: 5000 });
+  await puppeteer_click('[data-testid="AppTabBar_Explore_Link"], [aria-label="Search and explore"]');
+} catch (error) {
+  console.log("Could not find the search icon, trying alternative approach");
+  try {
+    // Try the search box directly
+    await puppeteer_waitForSelector('[data-testid="SearchBox_Search_Input"], [placeholder="Search"]', { timeout: 5000 });
+    await puppeteer_click('[data-testid="SearchBox_Search_Input"], [placeholder="Search"]');
+  } catch (error) {
+    console.log("Could not find search box, attempting to navigate directly to search URL");
+    await puppeteer_navigate("https://x.com/explore");
+  }
+}
+
+// Wait for search input to be available and enter username
+try {
+  await puppeteer_waitForSelector('[data-testid="SearchBox_Search_Input"], [placeholder="Search"]', { timeout: 5000 });
+  await puppeteer_fill('[data-testid="SearchBox_Search_Input"], [placeholder="Search"]', "{{username}}");
+  
+  // Press Enter to submit search
+  await puppeteer_evaluate(`
+    const searchInput = document.querySelector('[data-testid="SearchBox_Search_Input"], [placeholder="Search"]');
+    if (searchInput) {
+      searchInput.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        which: 13,
+        bubbles: true
+      }));
+    }
+  `);
+} catch (error) {
+  console.log("Could not interact with search, trying direct URL navigation");
+  await puppeteer_navigate(`https://x.com/search?q={{username}}`);
+}
+```
+
+## Step 5: Wait for Search Results and Navigate to Latest

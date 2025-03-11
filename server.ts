@@ -6,6 +6,7 @@ import puppeteer, { Browser, Page } from "puppeteer";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { exec } from "child_process";
 import * as path from "path";
+import express from "express";
 
 // Define the Puppeteer tools available to the client
 const TOOLS = [
@@ -140,6 +141,20 @@ const TOOLS = [
       required: ["inputSelector", "expectedResultSelector"]
     }
   },
+  {
+    name: "puppeteer_close_browser",
+    description: "Close or disconnect from the browser instance",
+    inputSchema: {
+      type: "object",
+      properties: {
+        shouldDisconnectOnly: { 
+          type: "boolean", 
+          description: "If true, will disconnect from the browser without closing it" 
+        }
+      },
+      required: [],
+    },
+  },
 ];
 
 // Global browser variables
@@ -256,6 +271,18 @@ async function ensureBrowser(): Promise<Page> {
     
     // Setup page
     await page.setViewport({ width: 1600, height: 900 });
+  } else if (!page || (page && typeof page.isClosed === 'function' && page.isClosed())) {
+    // If browser is connected but page is closed or null, create a new page
+    try {
+      page = await browser.newPage();
+      console.log('Created a new page in existing browser');
+      await page.setViewport({ width: 1600, height: 900 });
+    } catch (error) {
+      console.error('Error creating new page:', error);
+      // If creating a new page fails, try reconnecting to the browser
+      browser = null;
+      return ensureBrowser();
+    }
   }
   
   return page!;
@@ -552,11 +579,77 @@ async function waitForSelectorWithPolling(
   throw new Error(`Timed out waiting for selector "${selector}" after ${timeout}ms`);
 }
 
-// Handle tool calls from the client
-async function handleToolCall(name: string, args: any) {
-  const page = await ensureBrowser();
+// Add a function to disconnect from the browser without closing it
+async function disconnectFromBrowser() {
+  if (browser) {
+    try {
+      await browser.disconnect();
+      page = null;
+      browser = null;
+      console.log('Disconnected from Chrome browser (browser instance still running)');
+    } catch (error) {
+      console.error('Error disconnecting from browser:', error);
+    }
+  }
+}
+
+// Update the closeBrowser function and add shouldDisconnectOnly parameter
+async function closeBrowser(shouldDisconnectOnly: boolean = false) {
+  if (browser) {
+    try {
+      if (shouldDisconnectOnly) {
+        await disconnectFromBrowser();
+      } else {
+        await browser.close();
+        browser = null;
+        page = null;
+        console.log('Browser instance closed successfully');
+      }
+    } catch (error) {
+      console.error('Error closing browser:', error);
+    }
+  }
+}
+
+// Update the handleCloseBrowser function
+async function handleCloseBrowser(args: { shouldDisconnectOnly?: boolean } = {}) {
+  if (!browser) {
+    return { 
+      content: [{ type: "text", text: "No active browser instance to close" }],
+      isError: false 
+    };
+  }
+  
   try {
-    switch (name) {
+    await closeBrowser(args.shouldDisconnectOnly);
+    
+    const message = args.shouldDisconnectOnly ? 
+      "Disconnected from browser (Chrome instance still running)" : 
+      "Browser closed successfully";
+      
+    return { 
+      content: [{ type: "text", text: message }],
+      isError: false 
+    };
+  } catch (error: any) {
+    return { 
+      content: [{ type: "text", text: `Error with browser: ${error.message}` }],
+      isError: true 
+    };
+  }
+}
+
+// Main handler for tool calls
+async function handleToolCall(toolName: string, args: any) {
+  if (toolName === "puppeteer_close_browser") {
+    return handleCloseBrowser(args);
+  }
+  
+  // For all other tools, ensure the browser is initialized
+  try {
+    const page = await ensureBrowser();
+    
+    switch (toolName) {
       case "puppeteer_navigate":
         await page.goto(args.url, { waitUntil: "domcontentloaded" });
         return { content: [{ type: "text", text: `Navigated to ${args.url}` }], isError: false };
@@ -908,7 +1001,7 @@ async function handleToolCall(name: string, args: any) {
         }
       }
       default:
-        return { content: [{ type: "text", text: `Unknown tool: ${name}` }], isError: true };
+        return { content: [{ type: "text", text: `Unknown tool: ${toolName}` }], isError: true };
     }
   } catch (error) {
     return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
@@ -933,19 +1026,16 @@ async function main() {
   await server.connect(transport);
   console.log("Puppeteer MCP server running on stdio");
 
-  // Cleanup on process exit
-  process.on("SIGINT", async () => {
-    if (browser) {
-      // Disconnect from the browser instead of closing it
-      // This allows the user's Chrome session to remain open
-      if (debuggingUrl) {
-        await browser.disconnect();
-        console.log('Disconnected from Chrome browser');
-      } else {
-        await browser.close();
-        console.log('Closed browser instance');
-      }
-    }
+  // Add a signal handler to properly close the browser on server termination
+  process.on('SIGINT', async () => {
+    console.log('Received SIGINT. Closing browser and terminating...');
+    await closeBrowser(false); // Close completely, not just disconnect
+    process.exit(0);
+  });
+  
+  process.on('SIGTERM', async () => {
+    console.log('Received SIGTERM. Closing browser and terminating...');
+    await closeBrowser(false); // Close completely, not just disconnect
     process.exit(0);
   });
 }

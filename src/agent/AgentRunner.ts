@@ -78,6 +78,9 @@ export class AgentRunner {
     console.log(`Executing command: ${command}`);
     
     try {
+      // Reset the context for a new command
+      this.context = new AgentContext();
+      
       // 1. Generate detailed instructions
       const tasksPath = path.resolve('./config/tasks.json');
       const { taskType, parameters, instructions } = await this.generator.generateInstructions(command, tasksPath);
@@ -118,6 +121,7 @@ export class AgentRunner {
         });
       }
       
+      // Return the error result
       return {
         command,
         taskType: 'unknown',

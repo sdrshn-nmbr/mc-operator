@@ -1,3 +1,9 @@
+# Generated Prompt
+# Original Command: go to amazon.com and add a bottle of chanel rose perfume to my cart. make sure the price of it is under 400 dollars
+# Task Type: shopping
+# Generated: 2025-03-11T22:38:25.553Z
+# ===================================
+
 # Detailed Steps to Purchase Chanel Rose Perfume on Amazon
 
 ## Initial Setup and Navigation

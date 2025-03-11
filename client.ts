@@ -436,8 +436,13 @@ async function main() {
           message: 'Execution completed successfully'
         }));
         
-        // Exit with success
-        process.exit(0);
+        // In execute mode, we want to close everything
+        await cleanupResources(client, serverProcess, true);
+        
+        if (AGENT_MODE === 'execute') {
+          // Only exit the process if we're in execute mode
+          process.exit(0);
+        }
       } catch (error) {
         console.error('Error in agent mode:', error);
         
@@ -447,16 +452,83 @@ async function main() {
           message: error instanceof Error ? error.message : String(error)
         }));
         
-        // Exit with error
-        process.exit(1);
+        // In execute mode with error, we still want to close everything
+        await cleanupResources(client, serverProcess, true);
+        
+        if (AGENT_MODE === 'execute') {
+          // Only exit the process if we're in execute mode
+          process.exit(1);
+        }
       }
     } else {
       // Interactive mode - use normal flow
       await automateWithLLM(client, userPrompt);
+      
+      // In interactive mode, we don't want to close the browser or server
+      // This allows faster subsequent commands
+      await cleanupResources(client, serverProcess, false);
     }
   } catch (error) {
     console.error('Error in main process:', error);
-    process.exit(1);
+    
+    // Always try to terminate the server process if it exists in case of error
+    if (serverProcess) {
+      try {
+        serverProcess.kill();
+      } catch (e) {
+        console.error('Error terminating server process:', e);
+      }
+    }
+    
+    if (AGENT_MODE === 'execute') {
+      process.exit(1);
+    }
+  }
+}
+
+// Properly clean up resources
+async function cleanupResources(client: Client, serverProcess: any, shouldCloseCompletely: boolean = false): Promise<void> {
+  // If we're in execute mode or explicitly asked to close completely, we close the browser
+  // Otherwise, in interactive mode, we keep the browser instance alive
+  if (shouldCloseCompletely) {
+    try {
+      console.log('Closing browser...');
+      await client.callTool({
+        name: "puppeteer_close_browser",
+        arguments: {
+          shouldDisconnectOnly: false // Close browser completely
+        }
+      });
+      console.log('Browser closed successfully');
+    } catch (error) {
+      console.error('Error closing browser:', error);
+    }
+  } else {
+    console.log('Keeping browser instance alive for next command...');
+    // We don't need to call any browser disconnect in this case,
+    // as we want to keep the same browser instance running
+  }
+  
+  // In execute mode, disconnect from the server and kill the process
+  // In interactive mode, we keep the connection open
+  if (AGENT_MODE === 'execute' || shouldCloseCompletely) {
+    try {
+      await client.close();
+      console.log('Disconnected from MCP server');
+    } catch (error) {
+      console.error('Error disconnecting client:', error);
+    }
+    
+    try {
+      if (serverProcess && !serverProcess.killed) {
+        serverProcess.kill();
+        console.log('Terminated server process');
+      }
+    } catch (error) {
+      console.error('Error terminating server process:', error);
+    }
+  } else {
+    console.log('Keeping MCP connection alive for next command...');
   }
 }
 

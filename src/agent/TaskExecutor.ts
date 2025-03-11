@@ -99,6 +99,18 @@ export class TaskExecutor {
             console.error('Error cleaning up temp file:', e);
           }
           
+          // Ensure the process is terminated if in agent mode
+          // In interactive mode, the process will already be terminated at this point
+          // But we don't want to force termination of any lingering Chrome instances
+          if (env.AGENT_MODE === 'execute' && clientProcess && !clientProcess.killed) {
+            try {
+              clientProcess.kill();
+              console.log('Client process terminated in agent mode');
+            } catch (killError) {
+              console.error('Error terminating client process:', killError);
+            }
+          }
+          
           if (code === 0) {
             result.success = true;
             

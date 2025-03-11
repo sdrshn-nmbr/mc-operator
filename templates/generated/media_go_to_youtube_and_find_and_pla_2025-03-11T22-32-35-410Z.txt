@@ -1,0 +1,93 @@
+# Generated Prompt
+# Original Command: go to youtube and find and play the latest mkbhd video
+# Task Type: media
+# Generated: 2025-03-11T22:32:35.412Z
+# ===================================
+
+# Finding and Playing the Latest MKBHD Video on YouTube
+
+## Step-by-Step Instructions
+
+### 1. Navigate to YouTube
+```javascript
+await puppeteer_navigate("https://www.youtube.com");
+```
+
+### 2. Handle Consent Dialog (if it appears)
+```javascript
+// Wait for consent dialog with polling to ensure it loads if present
+await puppeteer_waitForSelector_with_polling(".eom-button-row button:nth-child(1), .consent-bump-button, #dialog button", 5000, 500, true);
+
+// Click "Accept all" or similar button if the dialog appears
+await puppeteer_evaluate(`
+  const consentButtons = document.querySelectorAll('.eom-button-row button:nth-child(1), .consent-bump-button, #dialog button');
+  if (consentButtons.length > 0) {
+    for (const button of consentButtons) {
+      if (button.innerText.includes('Accept') || button.innerText.includes('I agree') || button.innerText.includes('OK')) {
+        button.click();
+        break;
+      }
+    }
+  }
+`);
+```
+
+### 3. Search for MKBHD's Channel
+```javascript
+// Wait for search input to be available
+await puppeteer_waitForSelector("input#search, ytd-searchbox input");
+
+// Fill the search input with "MKBHD"
+await puppeteer_fill("input#search, ytd-searchbox input", "MKBHD");
+
+// Click the search button
+await puppeteer_click("#search-icon-legacy, ytd-searchbox button#search-button");
+```
+
+### 4. Wait for Search Results and Navigate to MKBHD's Channel
+```javascript
+// Wait for search results to load
+await puppeteer_waitForSelector_with_polling("ytd-channel-renderer, ytd-video-renderer", 5000, 500);
+
+// Look for MKBHD's channel in the results and click it
+await puppeteer_evaluate(`
+  // First try to find the official channel
+  const channelElements = Array.from(document.querySelectorAll('ytd-channel-renderer'));
+  const mkbhdChannel = channelElements.find(element => {
+    const channelName = element.querySelector('#text').textContent.trim();
+    return channelName.toLowerCase().includes('mkbhd') || channelName.toLowerCase().includes('marques brownlee');
+  });
+  
+  if (mkbhdChannel) {
+    mkbhdChannel.querySelector('a').click();
+  } else {
+    // If channel not found, look for a video by MKBHD and click on the channel from there
+    const videoElements = Array.from(document.querySelectorAll('ytd-video-renderer'));
+    const mkbhdVideo = videoElements.find(element => {
+      const channelName = element.querySelector('#channel-name, #text').textContent.trim();
+      return channelName.toLowerCase().includes('mkbhd') || channelName.toLowerCase().includes('marques brownlee');
+    });
+    
+    if (mkbhdVideo) {
+      const channelLink = mkbhdVideo.querySelector('#channel-name a, #text a');
+      if (channelLink) channelLink.click();
+    }
+  }
+`);
+```
+
+### 5. Navigate to Videos Tab
+```javascript
+// Wait for channel page to load
+await puppeteer_waitForSelector_with_polling("tp-yt-paper-tab, #tabsContent tp-yt-paper-tab", 5000, 500);
+
+// Click on the Videos tab
+await puppeteer_evaluate(`
+  const tabs = Array.from(document.querySelectorAll('tp-yt-paper-tab, #tabsContent tp-yt-paper-tab'));
+  const videosTab = tabs.find(tab => tab.textContent.trim().toLowerCase() === 'videos');
+  if (videosTab) {
+    videosTab.click();
+  } else {
+    // If tabs not found, try alternative selector
+    const links = Array.from(document.querySelectorAll('#channel-navigation a, #links-holder a'));
+    const videosLink = links.find(link => link.textContent.trim().toLowerCase

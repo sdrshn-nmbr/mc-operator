@@ -1,0 +1,40 @@
+# Login Automation Task
+
+Create a detailed, step-by-step login automation plan for website authentication.
+
+## Task Description
+Automate the process of logging into a website with user credentials.
+
+## Required Steps
+
+1. Navigate to the login page
+2. Locate and fill in the username/email field
+3. Locate and fill in the password field
+4. Submit the login form
+5. Handle any additional authentication steps (2FA, security questions, etc.)
+6. Verify successful login
+7. Handle errors appropriately (invalid credentials, account locked, etc.)
+
+## Specific Instructions
+Write a detailed automation script that uses available Puppeteer tools to accomplish the login task. Your script should:
+
+1. Start with navigating to the login page of the website
+2. Include specific selectors for username and password fields
+3. Add appropriate waits before and after form submission
+4. Handle common login errors and challenges:
+   - Captchas (prompt user for input if needed)
+   - Two-factor authentication
+   - Security questions
+   - "Remember this device" prompts
+   - Browser notifications
+5. Verify successful login by checking for elements only visible to logged-in users
+6. Include fallback strategies if the primary login method fails
+
+### Tips for Robust Login Automation
+- Wait for form fields to be fully loaded before interacting
+- Check for alternative login methods (e.g., SSO, social login) if main method fails
+- Be prepared to handle overlays, popups, or notices that may appear during login
+- Add explicit verification that each field was filled correctly before submission
+- For high-security sites, be ready to handle step-up authentication
+
+Provide your automation steps as a numbered sequence, with each step clearly describing one specific action to take. 

@@ -1,41 +1,34 @@
 {
   "tasks": [
     {
-      "id": "shopping",
-      "name": "Online Shopping",
-      "description": "Purchase items from online stores",
-      "template": "tasks/shopping.txt",
-      "requiredParams": ["item", "store"],
-      "optionalParams": ["budget", "quantity", "preferences"],
-      "keywords": ["buy", "purchase", "order", "get", "shop"]
+      "id": "login",
+      "description": "Log into a website with credentials",
+      "template": "tasks/login.txt"
     },
     {
-      "id": "search",
-      "name": "Information Search",
-      "description": "Search for information online",
-      "template": "tasks/search.txt",
-      "requiredParams": ["query"],
-      "optionalParams": ["source", "depth", "format"],
-      "keywords": ["search", "find", "look up", "research", "information"]
+      "id": "download",
+      "description": "Download a file from a website",
+      "template": "tasks/download.txt"
     },
     {
-      "id": "media",
-      "name": "Media Consumption",
-      "description": "Find and play videos, music, or other media",
-      "template": "tasks/media.txt",
-      "requiredParams": ["content", "platform"],
-      "optionalParams": ["quality", "duration", "preferences"],
-      "keywords": ["watch", "play", "listen", "stream", "video"]
+      "id": "scrape",
+      "description": "Extract data from a website",
+      "template": "tasks/scrape.txt"
     },
     {
-      "id": "social",
-      "name": "Social Media Interaction",
-      "description": "Interact with social media platforms",
-      "template": "tasks/social.txt",
-      "requiredParams": ["action", "platform"],
-      "optionalParams": ["username", "content", "filter"],
-      "keywords": ["tweet", "post", "summarize", "profile", "twitter", "x.com", "facebook", "instagram", "linkedin"]
+      "id": "form",
+      "description": "Fill and submit a form on a website",
+      "template": "tasks/form.txt"
+    },
+    {
+      "id": "navigation",
+      "description": "Navigate to specific areas of a website",
+      "template": "tasks/navigation.txt"
+    },
+    {
+      "id": "default",
+      "description": "General purpose web automation",
+      "template": "tasks/default.txt"
     }
-  ],
-  "defaultTask": "search"
+  ]
 } 

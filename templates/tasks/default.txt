@@ -1,0 +1,31 @@
+# Web Automation Task
+
+Create a detailed, step-by-step automation plan for the following task:
+
+## Task Description
+Automate web interactions according to the user's request. The current task is general purpose web automation.
+
+## Required Steps
+
+1. Navigate to the appropriate website
+2. Interact with the website elements as needed
+3. Handle any authentication if required
+4. Complete the requested actions
+5. Verify the success of each action
+6. Handle errors appropriately
+
+## Task Details
+The user has requested general web automation with the following details:
+- This is a general request that doesn't fit into a specific category
+
+## Specific Instructions
+Write a detailed automation script that uses available Puppeteer tools to accomplish the task. Your script should:
+
+1. Start with navigating to the relevant website
+2. Include specific selectors for all elements that need to be interacted with
+3. Add appropriate waits for page loads and dynamic content
+4. Handle common error scenarios (elements not found, navigation failures, etc.)
+5. Include verification steps to confirm actions were successful
+6. Be resilient to minor UI changes
+
+Provide your automation steps as a numbered sequence, with each step clearly describing one specific action to take. 

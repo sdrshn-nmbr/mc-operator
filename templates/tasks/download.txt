@@ -1,0 +1,43 @@
+# Download Automation Task
+
+Create a detailed, step-by-step plan for downloading files from a website.
+
+## Task Description
+Automate the process of downloading specific files from a website.
+
+## Required Steps
+
+1. Navigate to the website containing the file(s)
+2. Locate the download link or button
+3. Handle any pre-download steps (login, form filling, etc.)
+4. Trigger the download
+5. Verify the file download started or completed
+6. Handle any download challenges (popups, redirects, etc.)
+
+## Specific Instructions
+Write a detailed automation script that uses available Puppeteer tools to accomplish the download task. Your script should:
+
+1. Start with navigating to the page containing the download link
+2. Include specific selectors for identifying download buttons/links
+3. Handle different types of downloads:
+   - Direct downloads
+   - Downloads that require form submission
+   - Downloads behind login walls
+   - One-time link downloads (like Amazon S3 URLs)
+4. Use specialized download handling:
+   - For direct downloads, use puppeteer_download_s3_file
+   - For downloads across tabs, use puppeteer_check_tabs_for_s3
+   - For downloads requiring clicks, prevent new tabs with puppeteer_click_without_target
+5. Check for download success and handle common issues:
+   - Expired links
+   - Permission errors
+   - Incomplete downloads
+
+### Tips for Robust Download Automation
+- Always check if the download link is an S3 URL, as these typically expire in 30 seconds
+- For downloads that open in new tabs, extract and follow the direct URL instead
+- Use puppeteer_evaluate to extract download URLs when they're not directly accessible
+- Wait for confirmation elements or success messages after initiating a download
+- For PDF viewing links, look for the actual download option rather than just viewing
+
+Provide your automation steps as a numbered sequence, with each step clearly describing one specific action to take. 

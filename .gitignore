@@ -1,5 +1,49 @@
-# Dependencies
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
 node_modules/
+
+# Generated output
+dist/
+build/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Puppeteer chrome profile
+**/puppeteer-chrome-profile/
+
+# Temporary files
+temp_instructions.txt
+**/temp/
+
+# Dependencies
 npm-debug.log
 yarn-debug.log
 yarn-error.log
@@ -7,31 +51,11 @@ package-lock.json
 yarn.lock
 
 # Build outputs
-dist/
-build/
 .next/
-out/
-*.tsbuildinfo
-
-# Environment variables
-.env
-.env.*
-!.env.example
 
 # IDE and editor files
-.idea/
-.vscode/
 *.swp
 *.swo
-.DS_Store
-*.sublime-*
-
-# Debug logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Testing
 coverage/
@@ -47,7 +71,6 @@ temp-downloads/
 
 # Temporary files
 tmp/
-temp/
 .cache/
 download-*.js
 temp-*.js
@@ -62,15 +85,6 @@ browser-data/
 **/credentials.json
 *api_key*
 *API_KEY*
-
-# Operating System Files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
 # S3 URL token files
 s3-urls.json

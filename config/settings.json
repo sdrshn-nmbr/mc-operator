@@ -1,9 +1,23 @@
 {
+  "execution": {
+    "mode": "accuracy",
+    "maxIterations": 200,
+    "retryAttempts": 3,
+    "defaultTimeout": 30000
+  },
+  "logging": {
+    "enabled": true,
+    "level": "info",
+    "directory": "logs"
+  },
   "llm": {
     "model": "claude-3-7-sonnet-latest",
-    "max_tokens": 1024,
-    "temperature": 0.7,
-    "beta_features": ["token-efficient-tools-2025-02-19"]
+    "temperature": 0.5,
+    "maxTokens": 4096
+  },
+  "templatePaths": {
+    "base": "templates",
+    "tasks": "templates/tasks"
   },
   "templates": {
     "base_dir": "templates",
@@ -11,14 +25,11 @@
     "tasks_dir": "templates/tasks",
     "generated_dir": "templates/generated"
   },
-  "execution": {
-    "max_iterations": 200,
-    "retry_attempts": 3,
-    "default_timeout": 30000
-  },
   "browser": {
     "headless": false,
     "default_viewport": null,
-    "args": ["--start-maximized"]
+    "args": [
+      "--start-maximized"
+    ]
   }
-} 
+}

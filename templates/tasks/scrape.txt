@@ -1,0 +1,41 @@
+# Web Scraping Automation Task
+
+Create a detailed, step-by-step plan for extracting data from a website.
+
+## Task Description
+Automate the process of navigating to a website, extracting specific information, and presenting it in a structured format.
+
+## Required Steps
+
+1. Navigate to the appropriate website
+2. Locate the relevant content sections
+3. Extract the required information
+4. Process and structure the data
+5. Handle pagination if necessary
+6. Present the results in a clear format
+
+## Specific Instructions
+Write a detailed automation script that uses available Puppeteer tools to accomplish the scraping task. Your script should:
+
+1. Start with navigating to the website containing the target information
+2. Include specific selectors for identifying content elements
+3. Extract text, links, images, or other data as needed
+4. Handle dynamic content loading with appropriate waits
+5. Process the extracted data into a structured format
+6. Handle common scraping challenges:
+   - Content behind login walls
+   - Infinite scrolling pages
+   - Lazy-loaded content
+   - Anti-scraping measures
+   - Pagination
+
+### Tips for Robust Web Scraping
+- Use puppeteer_waitForSelector to ensure elements are loaded before extraction
+- Prefer CSS selectors that target stable attributes (IDs, data attributes)
+- For text extraction, use puppeteer_evaluate with document.querySelector().textContent
+- For extracting multiple items, use Array.from(document.querySelectorAll()) in evaluate
+- When scraping tables, identify the table structure first (headers, rows, cells)
+- For news sites, look for article containers, headlines, timestamps, and content blocks
+- Always verify that extracted data matches the expected format
+
+Provide your automation steps as a numbered sequence, with each step clearly describing one specific action to take. 

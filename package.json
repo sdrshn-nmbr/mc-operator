@@ -7,12 +7,12 @@
     "web-agent": "dist/cli.js"
   },
   "scripts": {
+    "start": "ts-node src/index.ts",
+    "test": "jest",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "dev": "nodemon --exec ts-node src/index.ts",
     "agent": "ts-node src/cli.ts",
-    "test": "ts-node src/test.ts",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint . --ext .ts",
     "prepublish": "npm run build"
   },
   "dependencies": {

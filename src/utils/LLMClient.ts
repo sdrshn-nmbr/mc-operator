@@ -1,108 +1,104 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { Anthropic } from '@anthropic-ai/sdk';
+import * as dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 /**
- * Interface for LLM configuration
+ * Response from the LLM
  */
-interface LLMConfig {
+export interface LLMResponse {
+  text: string;
   model: string;
-  max_tokens: number;
-  temperature: number;
-  beta_features?: string[];
+  tokenUsage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
 }
 
 /**
- * Interface for content generation request
+ * Options for LLM content generation
  */
-interface GenerateContentRequest {
+export interface GenerateContentOptions {
   systemPrompt: string;
   userPrompt: string;
-  tools?: any[];
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 /**
- * Interface for content generation response
- */
-interface GenerateContentResponse {
-  text: string;
-  usage?: {
-    input_tokens: number;
-    output_tokens: number;
-  };
-  stop_reason?: string | null;
-}
-
-/**
- * LLMClient handles interactions with language model APIs
+ * Client for interacting with LLMs
  */
 export class LLMClient {
   private anthropic: Anthropic;
-  private config: LLMConfig;
+  private defaultModel: string;
+  private defaultTemperature: number;
+  private defaultMaxTokens: number;
   
   /**
-   * Creates a new LLMClient
-   * @param apiKey API key for the LLM service
-   * @param config Configuration for the LLM
+   * Creates a new LLM client
+   * @param options Configuration options
    */
-  constructor(apiKey: string, config: LLMConfig) {
+  constructor(options?: {
+    apiKey?: string;
+    defaultModel?: string;
+    defaultTemperature?: number;
+    defaultMaxTokens?: number;
+  }) {
+    // Use the provided API key or look for it in environment variables
+    const apiKey = options?.apiKey || process.env.ANTHROPIC_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('Anthropic API key is required. Provide it in options or set ANTHROPIC_API_KEY environment variable.');
+    }
+    
     this.anthropic = new Anthropic({ apiKey });
-    this.config = config;
+    this.defaultModel = options?.defaultModel || 'claude-3-7-sonnet-latest';
+    this.defaultTemperature = options?.defaultTemperature || 0.5;
+    this.defaultMaxTokens = options?.defaultMaxTokens || 4096;
   }
   
   /**
    * Generates content using the LLM
-   * @param request The generation request
-   * @returns The generated content
+   * @param options Generation options
+   * @returns The LLM response
    */
-  async generateContent(request: GenerateContentRequest): Promise<GenerateContentResponse> {
+  async generateContent(options: GenerateContentOptions): Promise<LLMResponse> {
+    const {
+      systemPrompt,
+      userPrompt,
+      model = this.defaultModel,
+      temperature = this.defaultTemperature,
+      maxTokens = this.defaultMaxTokens
+    } = options;
+    
     try {
-      const { systemPrompt, userPrompt, tools } = request;
-      
-      // Create the messages array
-      const messages = [
-        { role: 'user' as const, content: userPrompt }
-      ];
-      
-      // Generate content with the LLM
-      const response = await this.anthropic.beta.messages.create({
-        model: this.config.model,
+      const response = await this.anthropic.messages.create({
+        model,
         system: systemPrompt,
-        max_tokens: this.config.max_tokens,
-        temperature: this.config.temperature,
-        messages,
-        tools: tools,
-        ...(this.config.beta_features && { betas: this.config.beta_features })
+        messages: [{ role: 'user', content: userPrompt }],
+        temperature,
+        max_tokens: maxTokens
       });
       
-      // Extract text content from response
-      const textContent = response.content.find(c => c.type === 'text');
+      // Extract the text content from the response
+      const content = response.content.filter(c => c.type === 'text');
+      const text = content.length > 0 ? content[0].text : '';
       
       return {
-        text: textContent ? textContent.text : '',
-        usage: {
-          input_tokens: response.usage?.input_tokens ?? 0,
-          output_tokens: response.usage?.output_tokens ?? 0
-        },
-        stop_reason: response.stop_reason
+        text,
+        model: response.model,
+        tokenUsage: {
+          input: response.usage.input_tokens,
+          output: response.usage.output_tokens,
+          total: response.usage.input_tokens + response.usage.output_tokens
+        }
       };
     } catch (error) {
-      console.error('Error generating content with LLM:', error);
-      throw new Error(`Failed to generate content: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('Error generating content from LLM:', error);
+      throw error;
     }
-  }
-  
-  /**
-   * Updates the LLM configuration
-   * @param config New configuration parameters
-   */
-  updateConfig(config: Partial<LLMConfig>): void {
-    this.config = { ...this.config, ...config };
-  }
-  
-  /**
-   * Gets the current LLM configuration
-   * @returns The current configuration
-   */
-  getConfig(): LLMConfig {
-    return { ...this.config };
   }
 } 

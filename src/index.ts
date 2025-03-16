@@ -2,8 +2,10 @@ import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { LLMClient } from './utils/LLMClient';
 import { PromptRepository } from './storage/PromptRepository';
-import { PromptGenerator } from './prompts/PromptGenerator';
+import { PromptGenerator } from './prompt/PromptGenerator';
 import { PromptTemplate } from './prompts/PromptTemplate';
+import { LogManager } from './logging/LogManager';
+import { SettingsManager } from './config/SettingsManager';
 import * as fs from 'fs/promises';
 import { stdin as input, stdout as output } from 'process';
 import * as readline from 'readline';
@@ -34,6 +36,8 @@ class PromptManagerApp {
   private llmClient!: LLMClient;
   private repository!: PromptRepository;
   private generator!: PromptGenerator;
+  private logManager!: LogManager;
+  private settingsManager!: SettingsManager;
   private settings: any;
   
   /**
@@ -48,11 +52,17 @@ class PromptManagerApp {
       const settingsContent = await fs.readFile(settingsPath, 'utf-8');
       this.settings = JSON.parse(settingsContent);
       
+      // Initialize managers
+      this.settingsManager = new SettingsManager(settingsPath);
+      this.logManager = new LogManager();
+      
       // Initialize clients
-      this.llmClient = new LLMClient(
-        process.env.ANTHROPIC_API_KEY || '', 
-        this.settings.llm
-      );
+      this.llmClient = new LLMClient({
+        apiKey: process.env.ANTHROPIC_API_KEY || '',
+        defaultModel: this.settings.llm.model,
+        defaultTemperature: this.settings.llm.temperature,
+        defaultMaxTokens: this.settings.llm.maxTokens
+      });
       
       // Initialize repository
       this.repository = new PromptRepository({
@@ -67,8 +77,9 @@ class PromptManagerApp {
       // Initialize generator
       this.generator = new PromptGenerator(
         this.llmClient,
-        this.repository,
-        tasksPath
+        this.logManager,
+        this.settingsManager,
+        this.settings.templates.base_dir
       );
       
       console.log('🚀 Prompt Manager initialized successfully!');
@@ -125,8 +136,7 @@ class PromptManagerApp {
     console.log('\nAnalyzing command and generating detailed instructions...');
     
     try {
-      const tasksPath = path.resolve('./config/tasks.json');
-      const result = await this.generator.generateInstructions(command, tasksPath);
+      const result = await this.generator.generateInstructions(command);
       
       console.log('\n✅ Instructions generated successfully!');
       console.log(`Task Type: ${result.taskType}`);

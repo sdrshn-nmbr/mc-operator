@@ -1,0 +1,41 @@
+# Website Navigation Automation Task
+
+Create a detailed, step-by-step plan for navigating through a website to reach specific content.
+
+## Task Description
+Automate the process of navigating through a website's structure to reach specific pages or sections.
+
+## Required Steps
+
+1. Navigate to the website's main page
+2. Identify and use navigation elements (menus, links, breadcrumbs)
+3. Follow a path through the site to reach the target content
+4. Handle any obstacles (logins, popups, redirects)
+5. Verify successful navigation to the target
+6. Extract or interact with the target content as needed
+
+## Specific Instructions
+Write a detailed automation script that uses available Puppeteer tools to accomplish the navigation task. Your script should:
+
+1. Start with navigating to the website's homepage or entry point
+2. Include specific selectors for navigation elements
+3. Follow a logical path through the site's structure
+4. Handle common navigation challenges:
+   - Multi-level menus
+   - Hamburger menus on mobile layouts
+   - Mega-menus with complex structures
+   - Dynamically loaded navigation elements
+   - Pagination systems
+5. Verify successful navigation at each step
+6. Have fallback strategies if the primary navigation path fails
+
+### Tips for Robust Website Navigation
+- Use puppeteer_waitForSelector to ensure navigation elements are loaded
+- For complex menus, use puppeteer_hover before clicking submenu items
+- Check for URL changes to confirm successful navigation
+- Look for breadcrumb trails to confirm current location
+- For sites with search functionality, consider using search as an alternative navigation method
+- Handle "Accept Cookies" or similar popups that might block navigation
+- Add appropriate waits after navigation actions to allow page content to load
+
+Provide your automation steps as a numbered sequence, with each step clearly describing one specific action to take. 

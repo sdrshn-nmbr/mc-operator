@@ -1,0 +1,48 @@
+# Form Filling Automation Task
+
+Create a detailed, step-by-step plan for filling and submitting a form on a website.
+
+## Task Description
+Automate the process of navigating to a form, filling in the required fields, and submitting it.
+
+## Required Steps
+
+1. Navigate to the page containing the form
+2. Locate all form fields (text inputs, dropdowns, checkboxes, etc.)
+3. Fill in each field with appropriate data
+4. Handle any validation or dynamic form behavior
+5. Submit the form
+6. Verify successful submission
+7. Handle any post-submission steps or confirmations
+
+## Specific Instructions
+Write a detailed automation script that uses available Puppeteer tools to accomplish the form filling task. Your script should:
+
+1. Start with navigating to the page containing the form
+2. Include specific selectors for each form field
+3. Fill each field with appropriate data:
+   - Text inputs using puppeteer_fill
+   - Dropdowns using puppeteer_select
+   - Checkboxes and radio buttons using puppeteer_click
+4. Handle special form elements:
+   - Date pickers
+   - File uploads
+   - Rich text editors
+   - Multi-select fields
+5. Verify each field is filled correctly before submission
+6. Submit the form and verify success
+7. Handle common form challenges:
+   - Client-side validation
+   - CAPTCHA or anti-bot measures
+   - Multi-step forms
+   - Dynamically appearing fields
+
+### Tips for Robust Form Automation
+- Wait for form elements to be fully loaded before interacting
+- Check for validation messages after filling each field
+- For complex forms, fill and submit in logical sections
+- Verify successful submission by checking for confirmation messages or URL changes
+- Have fallback strategies for different form layouts or behaviors
+- Add appropriate delays between actions to mimic human behavior
+
+Provide your automation steps as a numbered sequence, with each step clearly describing one specific action to take. 

@@ -75,12 +75,13 @@ export class LLMClient {
     } = options;
     
     try {
-      const response = await this.anthropic.messages.create({
+      const response = await this.anthropic.beta.messages.create({
         model,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
         temperature,
-        max_tokens: maxTokens
+        max_tokens: maxTokens,
+        betas: ["token-efficient-tools-2025-02-19", "output-128k-2025-02-19"]
       });
       
       // Extract the text content from the response

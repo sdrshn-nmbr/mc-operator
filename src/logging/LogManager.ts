@@ -20,6 +20,7 @@ export interface TaskLogEntry {
   duration?: number;
   executionMode: 'speed' | 'accuracy';
   error?: string;
+  additionalDetails?: any;
 }
 
 /**
@@ -85,17 +86,23 @@ export class LogManager {
    * @param logEntry The log entry to finalize
    * @param outcome The final outcome (success/failure)
    * @param error Optional error message
+   * @param additionalDetails Optional additional details about the execution
    */
   finalizeLog(
     logEntry: TaskLogEntry, 
     outcome: 'success' | 'failure', 
-    error?: string
+    error?: string,
+    additionalDetails?: any
   ): void {
     logEntry.outcome = outcome;
     logEntry.duration = Date.now() - logEntry.timestamp;
     
     if (error) {
       logEntry.error = error;
+    }
+    
+    if (additionalDetails) {
+      logEntry.additionalDetails = additionalDetails;
     }
     
     this.saveLog(logEntry);

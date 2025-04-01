@@ -4,6 +4,7 @@ import { LLMClient } from '../utils/LLMClient';
 import { LogAnalyzer, LogAnalysisResult } from '../logging/LogAnalyzer';
 import { LogManager, TaskLogEntry } from '../logging/LogManager';
 import { SettingsManager } from '../config/SettingsManager';
+import { PromptTemplate } from './PromptTemplate';
 
 /**
  * Template repository for accessing prompt templates
@@ -20,51 +21,17 @@ class TemplateRepository {
   }
   
   /**
-   * Gets the content of a template file
-   * @param templatePath Path to the template, relative to the base directory
+   * Gets a template by path
+   * @param templatePath Path to the template
    * @returns The template content
    */
   async getTemplate(templatePath: string): Promise<string> {
-    const fullPath = path.join(this.baseDir, templatePath);
     try {
+      const fullPath = path.join(this.baseDir, templatePath);
       return await fs.promises.readFile(fullPath, 'utf-8');
     } catch (error) {
       throw new Error(`Failed to load template: ${templatePath} - ${error instanceof Error ? error.message : String(error)}`);
     }
-  }
-}
-
-/**
- * Simple template rendering engine
- */
-class PromptTemplate {
-  private template: string;
-  private variables: Record<string, any>;
-  
-  /**
-   * Creates a new PromptTemplate
-   * @param template The template string
-   * @param variables Variables to use in rendering
-   */
-  constructor(template: string, variables: Record<string, any> = {}) {
-    this.template = template;
-    this.variables = variables;
-  }
-  
-  /**
-   * Renders the template
-   * @returns The rendered template
-   */
-  render(): string {
-    let result = this.template;
-    
-    // Replace {{variable}} with the corresponding value
-    for (const [key, value] of Object.entries(this.variables)) {
-      const placeholder = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-      result = result.replace(placeholder, String(value));
-    }
-    
-    return result;
   }
 }
 

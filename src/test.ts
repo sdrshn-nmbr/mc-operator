@@ -1,4 +1,4 @@
-import { PromptTemplate } from './prompts/PromptTemplate';
+import { PromptTemplate } from './prompt/PromptTemplate';
 
 /**
  * Test function to demonstrate prompt template functionality

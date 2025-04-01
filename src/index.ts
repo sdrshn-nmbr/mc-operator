@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 import { LLMClient } from './utils/LLMClient';
 import { PromptRepository } from './storage/PromptRepository';
 import { PromptGenerator } from './prompt/PromptGenerator';
-import { PromptTemplate } from './prompts/PromptTemplate';
+import { PromptTemplate } from './prompt/PromptTemplate';
 import { LogManager } from './logging/LogManager';
 import { SettingsManager } from './config/SettingsManager';
 import * as fs from 'fs/promises';

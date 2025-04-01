@@ -6,7 +6,6 @@ import puppeteer, { Browser, Page } from "puppeteer";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { exec } from "child_process";
 import * as path from "path";
-import express from "express";
 
 // Define the Puppeteer tools available to the client
 const TOOLS = [

@@ -71,6 +71,14 @@ export class AgentContext {
   }
   
   /**
+   * Gets all values from the context
+   * @returns Copy of all the values in the context
+   */
+  getAllValues(): ContextData {
+    return { ...this.data };
+  }
+  
+  /**
    * Clears all context data
    */
   clearData(): void {

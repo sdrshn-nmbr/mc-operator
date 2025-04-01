@@ -81,7 +81,11 @@ export class TaskExecutor {
         'execution_started',
         true,
         undefined,
-        { mode: executionMode }
+        { 
+          mode: executionMode,
+          timestamp: new Date().toISOString(),
+          contextValues: context.getAllValues() 
+        }
       );
       
       // Pass the instructions to the client.ts script
@@ -98,6 +102,7 @@ export class TaskExecutor {
         ...process.env,
         AGENT_INSTRUCTIONS_PATH: tempInstructionsPath,
         AGENT_MODE: 'execute', // Tell client.ts to run in execution mode
+        AGENT_LOG_ID: logEntry.id, // Pass the log ID to the client script
       };
       
       // Execute the client.ts script
@@ -108,7 +113,14 @@ export class TaskExecutor {
           'client_process_started',
           true,
           undefined,
-          { clientScriptPath }
+          { 
+            clientScriptPath,
+            tempInstructionsPath,
+            env: { 
+              AGENT_MODE: env.AGENT_MODE,
+              AGENT_LOG_ID: env.AGENT_LOG_ID
+            }
+          }
         );
         
         const clientProcess = spawn('npx', ['ts-node', clientScriptPath], { 
@@ -117,10 +129,12 @@ export class TaskExecutor {
         });
         
         let output = '';
+        let rawOutput = '';
         
         clientProcess.stdout.on('data', (data) => {
           const dataStr = data.toString();
           output += dataStr;
+          rawOutput += dataStr;
           
           // Parse action information from the output
           if (dataStr.includes('[AGENT_STEP]')) {
@@ -130,13 +144,17 @@ export class TaskExecutor {
                 const stepData = JSON.parse(stepMatch[1]);
                 result.executionDetails.steps.push(stepData);
                 
-                // Also log this step in our log entry
+                // Also log this step in our log entry with complete details
                 this.logManager.logAction(
                   logEntry,
                   stepData.action,
                   stepData.success,
                   stepData.error,
-                  stepData.result
+                  {
+                    ...stepData.result,
+                    rawStepOutput: dataStr, // Include the raw output for this step
+                    timestamp: new Date().toISOString()
+                  }
                 );
               }
             } catch (e) {
@@ -145,9 +163,26 @@ export class TaskExecutor {
                 logEntry,
                 'parse_step_data',
                 false,
-                e instanceof Error ? e.message : String(e)
+                e instanceof Error ? e.message : String(e),
+                {
+                  rawOutput: dataStr
+                }
               );
             }
+          } else {
+            // Log regular output for better context
+            this.logManager.logAction(
+              logEntry,
+              'agent_output',
+              true,
+              undefined,
+              {
+                output: dataStr.length > 1000 ? 
+                  dataStr.substring(0, 1000) + '... (truncated)' : 
+                  dataStr,
+                timestamp: new Date().toISOString()
+              }
+            );
           }
           
           console.log(dataStr);
@@ -157,13 +192,19 @@ export class TaskExecutor {
           const errorStr = data.toString();
           console.error(`Error: ${errorStr}`);
           output += errorStr;
+          rawOutput += errorStr;
           
-          // Log the error
+          // Log the error with more context
           this.logManager.logAction(
             logEntry,
             'client_process_error',
             false,
-            errorStr
+            errorStr,
+            {
+              timestamp: new Date().toISOString(),
+              type: 'stderr',
+              stackTrace: errorStr.includes('at ') ? errorStr : undefined
+            }
           );
         });
         
@@ -176,7 +217,12 @@ export class TaskExecutor {
             this.logManager.logAction(
               logEntry,
               'temp_file_cleanup',
-              true
+              true,
+              undefined,
+              {
+                tempFilePath: tempInstructionsPath,
+                timestamp: new Date().toISOString()
+              }
             );
           } catch (e) {
             console.error('Error cleaning up temp file:', e);
@@ -184,7 +230,11 @@ export class TaskExecutor {
               logEntry,
               'temp_file_cleanup',
               false,
-              e instanceof Error ? e.message : String(e)
+              e instanceof Error ? e.message : String(e),
+              {
+                tempFilePath: tempInstructionsPath,
+                timestamp: new Date().toISOString()
+              }
             );
           }
           
@@ -198,7 +248,11 @@ export class TaskExecutor {
               this.logManager.logAction(
                 logEntry,
                 'client_process_terminated',
-                true
+                true,
+                undefined,
+                {
+                  timestamp: new Date().toISOString()
+                }
               );
             } catch (killError) {
               console.error('Error terminating client process:', killError);
@@ -206,10 +260,26 @@ export class TaskExecutor {
                 logEntry,
                 'client_process_termination',
                 false,
-                killError instanceof Error ? killError.message : String(killError)
+                killError instanceof Error ? killError.message : String(killError),
+                {
+                  timestamp: new Date().toISOString()
+                }
               );
             }
           }
+          
+          // Add the complete raw output to the log entry for future analysis
+          this.logManager.logAction(
+            logEntry,
+            'complete_execution_output',
+            true,
+            undefined,
+            {
+              rawOutput,
+              outputLength: rawOutput.length,
+              timestamp: new Date().toISOString()
+            }
+          );
           
           if (code === 0) {
             result.success = true;
@@ -220,13 +290,21 @@ export class TaskExecutor {
               if (resultMatch && resultMatch[1]) {
                 result.result = JSON.parse(resultMatch[1]);
                 
-                // Log the successful result
+                // Log the successful result with comprehensive details
                 this.logManager.logAction(
                   logEntry,
                   'execution_result',
                   true,
                   undefined,
-                  result.result
+                  {
+                    ...result.result,
+                    executionSummary: {
+                      totalSteps: result.executionDetails.steps.length,
+                      successfulSteps: result.executionDetails.steps.filter(s => s.success).length,
+                      failedSteps: result.executionDetails.steps.filter(s => !s.success).length
+                    },
+                    timestamp: new Date().toISOString()
+                  }
                 );
               }
             } catch (e) {
@@ -238,32 +316,67 @@ export class TaskExecutor {
                 'parse_result_data',
                 false,
                 e instanceof Error ? e.message : String(e),
-                { output }
+                {
+                  output,
+                  timestamp: new Date().toISOString()
+                }
               );
             }
             
-            // Finalize the log with success
-            this.logManager.finalizeLog(logEntry, 'success');
+            // Finalize the log with success and comprehensive metrics
+            this.logManager.finalizeLog(
+              logEntry, 
+              'success', 
+              undefined,
+              {
+                executionMetrics: {
+                  totalSteps: result.executionDetails.steps.length,
+                  successfulSteps: result.executionDetails.steps.filter(s => s.success).length,
+                  failedSteps: result.executionDetails.steps.filter(s => !s.success).length,
+                  duration: Date.now() - logEntry.timestamp,
+                  outputSize: rawOutput.length
+                }
+              }
+            );
             
             resolve(result);
           } else {
             result.success = false;
             result.result = { error: `Process exited with code ${code}`, output };
             
-            // Log the failure
+            // Log the failure with detailed information
             this.logManager.logAction(
               logEntry,
               'execution_result',
               false,
               `Process exited with code ${code}`,
-              { output }
+              {
+                output,
+                errorCode: code,
+                executionSummary: {
+                  totalSteps: result.executionDetails.steps.length,
+                  successfulSteps: result.executionDetails.steps.filter(s => s.success).length,
+                  failedSteps: result.executionDetails.steps.filter(s => !s.success).length
+                },
+                timestamp: new Date().toISOString()
+              }
             );
             
-            // Finalize the log with failure
+            // Finalize the log with failure and detailed diagnostics
             this.logManager.finalizeLog(
               logEntry, 
               'failure', 
-              `Process exited with code ${code}`
+              `Process exited with code ${code}`,
+              {
+                diagnostics: {
+                  exitCode: code,
+                  lastSuccessfulStep: result.executionDetails.steps.filter(s => s.success).pop(),
+                  lastFailedStep: result.executionDetails.steps.filter(s => !s.success).pop(),
+                  totalSteps: result.executionDetails.steps.length,
+                  outputLength: rawOutput.length,
+                  possibleErrors: this.extractPossibleErrors(rawOutput)
+                }
+              }
             );
             
             resolve(result);
@@ -271,16 +384,37 @@ export class TaskExecutor {
         });
         
         clientProcess.on('error', (error) => {
-          // Log the error
+          // Extract error properties safely
+          const errorDetails = {
+            name: error.name,
+            stack: error.stack,
+            // Handle the code property if it exists
+            errorCode: (error as any).code
+          };
+          
+          // Log the error with comprehensive details
           this.logManager.logAction(
             logEntry,
             'client_process_launch',
             false,
-            error.message
+            error.message,
+            {
+              errorName: error.name,
+              errorStack: error.stack,
+              timestamp: new Date().toISOString(),
+              rawOutput
+            }
           );
           
-          // Finalize the log with failure
-          this.logManager.finalizeLog(logEntry, 'failure', error.message);
+          // Finalize the log with failure and detailed error information
+          this.logManager.finalizeLog(
+            logEntry, 
+            'failure', 
+            error.message,
+            {
+              errorDetails
+            }
+          );
           
           reject(error);
         });
@@ -288,12 +422,17 @@ export class TaskExecutor {
     } catch (error) {
       console.error('Error executing instructions:', error);
       
-      // Log the error
+      // Log the error with comprehensive details
       this.logManager.logAction(
         logEntry,
         'execute_instructions',
         false,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
+        {
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          stack: error instanceof Error ? error.stack : undefined,
+          timestamp: new Date().toISOString()
+        }
       );
       
       // Add to result details
@@ -303,14 +442,51 @@ export class TaskExecutor {
         error: error instanceof Error ? error.message : String(error)
       });
       
-      // Finalize the log with failure
+      // Finalize the log with failure and detailed error context
       this.logManager.finalizeLog(
         logEntry, 
         'failure', 
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
+        {
+          errorContext: {
+            type: error instanceof Error ? error.constructor.name : typeof error,
+            stack: error instanceof Error ? error.stack : undefined,
+            instruction: instructions.length > 200 ? 
+              instructions.substring(0, 200) + '... (truncated)' : 
+              instructions
+          }
+        }
       );
       
       return result;
     }
+  }
+  
+  /**
+   * Extract possible errors from raw output
+   * @param output Raw output to analyze
+   * @returns List of possible error messages
+   */
+  private extractPossibleErrors(output: string): string[] {
+    const errorPatterns = [
+      /Error:?\s*([^\n]+)/gi,
+      /Exception:?\s*([^\n]+)/gi,
+      /Failed to ([^\n]+)/gi,
+      /Cannot ([^\n]+)/gi,
+      /Timeout ([^\n]+)/gi
+    ];
+    
+    const errors = [];
+    
+    for (const pattern of errorPatterns) {
+      const matches = output.matchAll(pattern);
+      for (const match of matches) {
+        if (match[1]) {
+          errors.push(match[0]);
+        }
+      }
+    }
+    
+    return errors.slice(0, 10); // Limit to top 10 errors
   }
 } 

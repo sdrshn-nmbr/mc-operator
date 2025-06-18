@@ -167,7 +167,7 @@ async function main() {
         llm: {
           model: 'claude-sonnet-4-20250514',
           temperature: 0.5,
-          maxTokens: 64000
+          maxTokens: 8192
         },
         templatePaths: {
           base: path.join(process.cwd(), 'templates'),
@@ -196,7 +196,7 @@ async function main() {
         config.settings.llm = {
           model: 'claude-sonnet-4-20250514',
           temperature: 0.5,
-          maxTokens: 64000
+          maxTokens: 8192
         };
       }
       

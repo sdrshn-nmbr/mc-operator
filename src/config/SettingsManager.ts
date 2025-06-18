@@ -41,7 +41,7 @@ const DEFAULT_SETTINGS: Settings = {
   llm: {
     model: 'claude-sonnet-4-20250514',
     temperature: 0.5,
-    maxTokens: 64000
+    maxTokens: 8192
   }
 };
 

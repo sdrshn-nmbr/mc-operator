@@ -13,8 +13,8 @@
   "llm": {
     "model": "claude-sonnet-4-20250514",
     "temperature": 0.5,
-    "apiKey": "",
-    "maxTokens": 64000
+    "maxTokens": 8192,
+    "apiKey": ""
   },
   "templatePaths": {
     "base": "templates",

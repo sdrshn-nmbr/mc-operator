@@ -295,7 +295,7 @@ async function automateWithLLM(client: Client, prompt: string, description: stri
     const response = await anthropic.beta.messages.create({
       model: "claude-sonnet-4-20250514",
       system: systemPrompt,
-      max_tokens: 64000,
+      max_tokens: 8192,
       messages,
       tools: anthropicTools,
       betas: ["token-efficient-tools-2025-02-19", "output-128k-2025-02-19"]

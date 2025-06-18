@@ -20,4 +20,75 @@ Consider these important aspects:
 
 Provide specific selectors for each step, with alternate approaches if primary selectors fail.
 Include JavaScript evaluation scripts for interacting with the media player when needed.
-Suggest methods for handling common issues like regional restrictions or premium content limitations. 
+Suggest methods for handling common issues like regional restrictions or premium content limitations.
+
+For media and game-related tasks, prioritize:
+
+## CRITICAL GAME AUTOMATION REQUIREMENTS
+
+**YOU MUST PLAY UNTIL YOU ACTUALLY WIN - NOT JUST SET UP AUTOMATION**
+
+### Game Completion Standards:
+1. **Continue playing until the actual win condition is met**
+   - For 2048: Play until you reach the 2048 tile
+   - For puzzles: Solve completely
+   - For level-based games: Complete the requested level/score
+   - **DO NOT stop after just demonstrating the system works**
+
+2. **Use visual verification throughout the game**
+   - Take screenshots every 10-20 moves to monitor progress
+   - Use `playwright_screenshot` to see current game state
+   - Use `playwright_visual_analyze` to understand complex game situations
+   - Verify win condition visually with a final screenshot
+
+3. **Handle game-specific UI obstacles**
+   - Close tutorial overlays or tips
+   - Dismiss "How to play" modals
+   - Handle game over/restart prompts
+   - Remove advertisements or promotional overlays
+   - Close social sharing prompts
+
+### Game Automation Best Practices:
+
+1. **Start with visual assessment:**
+   ```
+   - Take screenshot to see initial game state
+   - Close any tutorials, overlays, or pop-ups
+   - Verify game is ready to play
+   ```
+
+2. **Implement smart game logic:**
+   - Analyze current board state visually when needed
+   - Make strategic moves, not just random ones
+   - Use game-specific algorithms when possible
+   - Monitor progress toward win condition
+
+3. **Continuous monitoring:**
+   - Take periodic screenshots during gameplay
+   - Check for win/lose conditions
+   - Handle unexpected game states
+   - Restart if needed and continue until win
+
+4. **Final verification:**
+   - Take screenshot showing win condition achieved
+   - Verify the target (e.g., 2048 tile) is visible
+   - Confirm game recognizes the win
+
+### Example Game Flow:
+1. Navigate to game
+2. **Take screenshot** - see initial state
+3. **Close any overlays/tutorials**
+4. **Take screenshot** - confirm clear view
+5. Start game automation
+6. **Take periodic screenshots** during play
+7. **Continue until win condition is met**
+8. **Take final screenshot** showing victory
+9. Confirm successful completion
+
+**REMEMBER: The user wants you to actually WIN the game, not just show that automation is possible. Keep playing until you achieve the actual objective.**
+
+- Focus on game mechanics and user interface interactions
+- Handle dynamic content and real-time updates
+- Consider multimedia elements (video players, audio controls, game interfaces)
+- Account for content loading delays and buffering
+- Use visual analysis for games and complex media interfaces where text selectors might be unreliable 

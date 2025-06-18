@@ -263,6 +263,66 @@ const TOOLS = [
       required: ["message"],
     },
   },
+  {
+    name: "playwright_screenshot",
+    description: "Take a screenshot of the current page for visual analysis",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filename: { 
+          type: "string", 
+          description: "Optional filename to save screenshot to" 
+        },
+        fullPage: { 
+          type: "boolean", 
+          description: "Whether to capture full page (default: true)" 
+        },
+        element: { 
+          type: "string", 
+          description: "CSS selector to screenshot specific element" 
+        },
+        quality: { 
+          type: "number", 
+          description: "Image quality 1-100 for JPEG (default: 80)" 
+        },
+        format: { 
+          type: "string", 
+          description: "Image format: 'png' or 'jpeg' (default: 'jpeg')" 
+        },
+        returnBase64: { 
+          type: "boolean", 
+          description: "Return base64 data for immediate analysis (default: true)" 
+        }
+      },
+      required: [],
+    },
+  },
+  {
+    name: "playwright_visual_analyze",
+    description: "Take screenshot and analyze current page state using AI vision",
+    inputSchema: {
+      type: "object",
+      properties: {
+        question: { 
+          type: "string", 
+          description: "What to analyze about the page state" 
+        },
+        fullPage: { 
+          type: "boolean", 
+          description: "Whether to capture full page (default: true)" 
+        },
+        includeElements: { 
+          type: "boolean", 
+          description: "Identify clickable elements and suggest actions (default: false)" 
+        },
+        compareWith: { 
+          type: "string", 
+          description: "Compare with previous screenshot filename" 
+        }
+      },
+      required: ["question"],
+    },
+  },
 ];
 
 // Chrome/browser management functions
@@ -1876,7 +1936,14 @@ async function handleToolCall(toolName: string, args: any) {
         return handleDownload(page, args);
         
       case "playwright_upload":
-        return handleUpload(page, args);        
+        return handleUpload(page, args);
+
+      case "playwright_screenshot":
+        return handleScreenshot(page, args);
+
+      case "playwright_visual_analyze":
+        return handleVisualAnalyze(page, args);
+        
       default:
         return { 
           content: [{ type: "text", text: `Unknown tool: ${toolName}` }], 
@@ -1927,6 +1994,262 @@ main().catch((error) => {
   console.error("Server failed to start:", error);
   process.exit(1);
 });
+
+async function handleScreenshot(page: Page, args: {
+  filename?: string;
+  fullPage?: boolean;
+  element?: string;
+  quality?: number;
+  format?: 'png' | 'jpeg';
+  returnBase64?: boolean;
+}): Promise<{ content: any[]; isError: boolean }> {
+  try {
+    const {
+      filename,
+      fullPage = true,
+      element,
+      quality = 80,
+      format = 'jpeg',
+      returnBase64 = true
+    } = args;
+
+    let screenshotData: string;
+
+    if (!context) {
+      return {
+        content: [{ type: "text", text: "Error: No browser context available for screenshot" }],
+        isError: true
+      };
+    }
+
+    // Use CDP for better performance as recommended by Browserbase
+    const client = await context.newCDPSession(page);
+
+    if (element) {
+      // Element-specific screenshot
+      try {
+        await page.waitForSelector(element, { timeout: 5000 });
+        const elementHandle = await page.$(element);
+        if (!elementHandle) {
+          return {
+            content: [{ type: "text", text: `Error: Element not found: ${element}` }],
+            isError: true
+          };
+        }
+        
+        // Get element bounds for targeted screenshot
+        const boundingBox = await elementHandle.boundingBox();
+        if (boundingBox) {
+          const { data } = await client.send("Page.captureScreenshot", {
+            format,
+            quality: format === 'jpeg' ? quality : undefined,
+            clip: {
+              x: boundingBox.x,
+              y: boundingBox.y,
+              width: boundingBox.width,
+              height: boundingBox.height,
+              scale: 1
+            }
+          });
+          screenshotData = data;
+        } else {
+          return {
+            content: [{ type: "text", text: `Error: Could not get bounds for element: ${element}` }],
+            isError: true
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Error taking element screenshot: ${(error as Error).message}` }],
+          isError: true
+        };
+      }
+    } else {
+      // Full page screenshot
+      const { data } = await client.send("Page.captureScreenshot", {
+        format,
+        quality: format === 'jpeg' ? quality : undefined,
+        captureBeyondViewport: fullPage
+      });
+      screenshotData = data;
+    }
+
+    const results: any[] = [];
+
+    // Save to file if filename provided
+    if (filename) {
+      try {
+        const fs = require('fs');
+        const screenshotDir = 'screenshots';
+        
+        // Create directory if it doesn't exist
+        if (!fs.existsSync(screenshotDir)) {
+          fs.mkdirSync(screenshotDir, { recursive: true });
+        }
+        
+        // Save the screenshot
+        const buffer = Buffer.from(screenshotData, 'base64');
+        const extension = format === 'jpeg' ? 'jpg' : 'png';
+        const finalFilename = filename.endsWith(`.${extension}`) ? filename : `${filename}.${extension}`;
+        const screenshotPath = `${screenshotDir}/${finalFilename}`;
+        fs.writeFileSync(screenshotPath, buffer);
+        
+        results.push({ 
+          type: "text", 
+          text: `Screenshot saved to ${screenshotPath}` 
+        });
+      } catch (error) {
+        results.push({ 
+          type: "text", 
+          text: `Warning: Could not save screenshot file: ${(error as Error).message}` 
+        });
+      }
+    }
+
+    // Return base64 data if requested
+    if (returnBase64) {
+      results.push({
+        type: "text",
+        text: `Screenshot captured successfully. Base64 data: ${screenshotData.substring(0, 100)}...`
+      });
+      
+      // Store the base64 data for potential visual analysis
+      // We'll add this to a global store for the visual analyzer to access
+      (global as any).lastScreenshotData = {
+        data: screenshotData,
+        format,
+        timestamp: Date.now(),
+        url: page.url(),
+        element: element || 'full-page'
+      };
+    }
+
+    return {
+      content: results,
+      isError: false
+    };
+
+  } catch (error) {
+    console.error('Error taking screenshot:', error);
+    return {
+      content: [{ type: "text", text: `Error taking screenshot: ${(error as Error).message}` }],
+      isError: true
+    };
+  }
+}
+
+async function handleVisualAnalyze(page: Page, args: {
+  question: string;
+  fullPage?: boolean;
+  includeElements?: boolean;
+  compareWith?: string;
+}): Promise<{ content: any[]; isError: boolean }> {
+  try {
+    const { LLMClient } = require('./src/utils/LLMClient');
+    const llmClient = new LLMClient();
+    
+    const {
+      question,
+      fullPage = true,
+      includeElements = false,
+      compareWith
+    } = args;
+
+    // First, take a screenshot
+    const screenshotResult = await handleScreenshot(page, {
+      fullPage,
+      returnBase64: true,
+      format: 'jpeg',
+      quality: 80
+    });
+
+    if (screenshotResult.isError) {
+      return screenshotResult;
+    }
+
+    // Get the screenshot data from global storage
+    const screenshotData = (global as any).lastScreenshotData;
+    if (!screenshotData) {
+      return {
+        content: [{ type: "text", text: "Error: No screenshot data available for analysis" }],
+        isError: true
+      };
+    }
+
+    // Prepare enhanced question with element detection if requested
+    let enhancedQuestion = question;
+    if (includeElements) {
+      enhancedQuestion += `
+
+      Additionally, please identify and describe:
+      1. Any clickable elements (buttons, links, forms)
+      2. Interactive UI components
+      3. Suggested next actions based on what you see
+      4. Any error messages or important notifications`;
+    }
+
+    // Add comparison context if requested
+    if (compareWith) {
+      try {
+        const fs = require('fs');
+        const compareImagePath = `screenshots/${compareWith}`;
+        if (fs.existsSync(compareImagePath)) {
+          const compareImageData = fs.readFileSync(compareImagePath, 'base64');
+          
+          // For comparison, we'll add the instruction to the question
+          enhancedQuestion += `
+
+          COMPARISON REQUEST: I have provided a previous screenshot. Please compare the current state with the previous state and highlight what has changed.`;
+          
+          // TODO: Implement multi-image comparison by modifying the LLMClient call
+          // For now, we'll note that comparison was requested
+        }
+      } catch (error) {
+        console.log(`Warning: Could not load comparison image: ${compareWith}`);
+      }
+    }
+
+    // Analyze the screenshot
+    const analysisResult = await llmClient.analyzeScreenshot(
+      screenshotData.data,
+      enhancedQuestion,
+      {
+        url: screenshotData.url,
+        taskObjective: question
+      }
+    );
+
+    // Format the response
+    const results = [
+      {
+        type: "text",
+        text: `🔍 **Visual Analysis Results**
+
+**Page URL:** ${screenshotData.url}
+**Screenshot Element:** ${screenshotData.element}
+**Analysis Question:** ${question}
+
+**AI Analysis:**
+${analysisResult.text}
+
+**Token Usage:** ${analysisResult.tokenUsage?.total || 'unknown'} tokens
+**Cost Estimate:** ~$${((analysisResult.tokenUsage?.total || 0) * 0.000003).toFixed(4)}`
+      }
+    ];
+
+    return {
+      content: results,
+      isError: false
+    };
+
+  } catch (error) {
+    console.error('Error in visual analysis:', error);
+    return {
+      content: [{ type: "text", text: `Error during visual analysis: ${(error as Error).message}` }],
+      isError: true
+    };
+  }
+}
 
 async function handleInputPrompt(args: {
   message: string;

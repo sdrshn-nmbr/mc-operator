@@ -1,9 +1,9 @@
 {
   "execution": {
     "mode": "accuracy",
-    "maxIterations": 200,
-    "retryAttempts": 3,
-    "defaultTimeout": 30000
+    "maxIterations": 2000,
+    "retryAttempts": 4,
+    "defaultTimeout": 60000
   },
   "logging": {
     "enabled": true,
@@ -11,9 +11,10 @@
     "directory": "logs"
   },
   "llm": {
-    "model": "claude-3-7-sonnet-latest",
+    "model": "claude-sonnet-4-20250514",
     "temperature": 0.5,
-    "maxTokens": 4096
+    "apiKey": "",
+    "maxTokens": 64000
   },
   "templatePaths": {
     "base": "templates",

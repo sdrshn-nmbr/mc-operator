@@ -12,14 +12,20 @@
     "build": "tsc",
     "dev": "nodemon --exec ts-node src/index.ts",
     "agent": "ts-node src/cli.ts",
+    "browserbase": "ts-node client.ts --browserbase",
     "lint": "eslint . --ext .ts",
     "prepublish": "npm run build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@browserbasehq/sdk": "^1.5.0",
     "@modelcontextprotocol/sdk": "^1.6.1",
+    "@types/adm-zip": "^0.5.7",
+    "adm-zip": "^0.5.16",
     "dotenv": "^16.4.7",
-    "puppeteer": "^24.4.0"
+    "playwright": "^1.51.1",
+    "puppeteer": "^24.4.0",
+    "puppeteer-core": "^24.4.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

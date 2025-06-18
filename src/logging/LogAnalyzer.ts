@@ -162,6 +162,13 @@ Focus on practical, actionable improvements that will make the automation more r
       // Strip markdown code block if present
       let jsonText = response.text;
       
+      console.log('=== LLM RESPONSE DEBUG ===');
+      console.log('Raw LLM response:');
+      console.log(JSON.stringify(response.text, null, 2));
+      console.log('Raw LLM response length:', response.text.length);
+      console.log('First 200 chars:', response.text.substring(0, 200));
+      console.log('Last 200 chars:', response.text.substring(Math.max(0, response.text.length - 200)));
+      
       // Check if the response is wrapped in markdown code blocks
       const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
       const match = jsonText.match(codeBlockRegex);
@@ -169,18 +176,86 @@ Focus on practical, actionable improvements that will make the automation more r
       if (match && match[1]) {
         // Extract the content from inside the code block
         jsonText = match[1];
+        console.log('Extracted from markdown code block:');
+        console.log(JSON.stringify(jsonText, null, 2));
+      } else {
+        console.log('No markdown code block found, using full response');
       }
       
-      // Parse the response as JSON
-      const result: LogAnalysisResult = JSON.parse(jsonText);
+      console.log('Text to be parsed as JSON:');
+      console.log(JSON.stringify(jsonText, null, 2));
+      console.log('JSON text length:', jsonText.length);
+      console.log('First 100 chars of JSON text:', jsonText.substring(0, 100));
+      
+      // Show character codes of first few characters to detect invisible characters
+      console.log('Character codes of first 10 characters:');
+      for (let i = 0; i < Math.min(10, jsonText.length); i++) {
+        console.log(`Position ${i}: "${jsonText[i]}" (code: ${jsonText.charCodeAt(i)})`);
+      }
+      
+      // Only handle truly problematic characters (like null bytes or other control chars)
+      // Don't touch valid JSON escape sequences
+      jsonText = jsonText.replace(/\x00/g, ''); // Remove null bytes if any
+      
+      console.log('Final sanitized JSON text:');
+      console.log(JSON.stringify(jsonText, null, 2));
+      console.log('About to attempt JSON.parse...');
+
+      // Check for truncated JSON (unterminated strings)
+      let finalJsonText = jsonText;
+      if (!jsonText.endsWith('}') && !jsonText.endsWith('}\n')) {
+        console.log('JSON appears to be truncated, attempting to fix...');
+        
+        // Try to close any open strings and the JSON object
+        // Count open braces vs close braces
+        const openBraces = (jsonText.match(/\{/g) || []).length;
+        const closeBraces = (jsonText.match(/\}/g) || []).length;
+        
+        // If we have unterminated strings, try to close them
+        if (jsonText.includes('"newPrompt": "') && !jsonText.match(/"newPrompt":\s*"[^"]*"[^}]*\}/)) {
+          // The newPrompt string is not closed, let's close it
+          finalJsonText = jsonText + '"';
+        }
+        
+        // Add missing closing braces
+        const missingBraces = openBraces - closeBraces;
+        for (let i = 0; i < missingBraces; i++) {
+          finalJsonText += '}';
+        }
+        
+        console.log('Attempted to fix truncated JSON:', finalJsonText.substring(finalJsonText.length - 100));
+      }
+
+      // Attempt to parse the sanitized JSON
+      const result: LogAnalysisResult = JSON.parse(finalJsonText);
+      
+      console.log('JSON parsing successful!');
+      console.log('=== END LLM RESPONSE DEBUG ===');
       
       // Add the raw output for debugging purposes
       result.rawOutput = response.text;
       
       return result;
     } catch (error) {
-      // If parsing fails, extract suggestions from the text response
+      // If parsing fails, try to extract at least the suggestions array which is usually complete
       console.error('Error parsing LLM response as JSON:', error);
+      
+      try {
+        // Try to extract suggestions array manually
+        const suggestionsMatch = response.text.match(/"suggestions":\s*\[([\s\S]*?)\]/);
+        if (suggestionsMatch) {
+          const suggestionsArrayStr = '[' + suggestionsMatch[1] + ']';
+          const suggestions = JSON.parse(suggestionsArrayStr);
+          console.log('Successfully extracted suggestions array as fallback');
+          return {
+            suggestions: suggestions,
+            rawOutput: response.text
+          };
+        }
+      } catch (fallbackError) {
+        console.error('Fallback extraction also failed:', fallbackError);
+      }
+      
       return {
         suggestions: [
           'Error parsing LLM analysis results.',

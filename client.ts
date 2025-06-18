@@ -6,8 +6,7 @@ import { spawn } from "child_process";
 import { Anthropic } from "@anthropic-ai/sdk";
 import * as dotenv from "dotenv";
 import * as readline from "readline";
-import { exec } from 'child_process';
-import * as path from 'path';
+import * as fs from "fs";
 
 // Load environment variables
 dotenv.config();
@@ -17,280 +16,108 @@ if (!ANTHROPIC_API_KEY) {
   process.exit(1);
 }
 
-// Add support for autonomous agent mode
+// Browserbase configuration
+const BROWSERBASE_API_KEY = process.env.BROWSERBASE_API_KEY || "MnHzDIVH9Ju5wxmY30KY_fseGQA";
+const BROWSERBASE_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID || "433bf829-83c1-4833-bd81-803633977f36";
+const USE_BROWSERBASE = process.env.USE_BROWSERBASE === "true" || process.argv.includes("--browserbase");
+
+if (USE_BROWSERBASE) {
+  console.log("Using Browserbase for browser automation");
+  if (!BROWSERBASE_API_KEY || !BROWSERBASE_PROJECT_ID) {
+    console.error("Error: BROWSERBASE_API_KEY or BROWSERBASE_PROJECT_ID not configured.");
+    process.exit(1);
+  }
+  
+  // Set environment variables for the server process
+  process.env.BROWSERBASE_API_KEY = BROWSERBASE_API_KEY;
+  process.env.BROWSERBASE_PROJECT_ID = BROWSERBASE_PROJECT_ID;
+  process.env.USE_BROWSERBASE = "true";
+} else {
+  console.log("Using local Chrome for browser automation");
+}
+
+// Agent mode configuration
 const AGENT_MODE = process.env.AGENT_MODE || 'interactive';
 const AGENT_INSTRUCTIONS_PATH = process.env.AGENT_INSTRUCTIONS_PATH;
 
-// Define the base userPrompt 
-const defaultUserPrompt = `I need to log into Gusto at https://app.gusto.com and download all 941 forms and also download employee summary report from reports tab.
-
-// # Gusto Login and Navigation Instructions
-
-// Please help me log in to Gusto, download a 941 tax form, and an employee summary report. Follow these instructions carefully:
-
-// 1. **Navigate to Login Page**
-//    - Go to https://app.gusto.com/login
-
-// 2. **Login with Credentials**
-//    - Fill in the email field (input[name="email"]) with: daniel@elemetric.io
-//    - Fill in the password field (input[name="password"]) with: midas!1234
-//    - Click the submit button (button[type="submit"])
-
-// 3. **Handle Two-Factor Authentication**
-//    - When the 2FA screen appears, look for input[name="code"]
-//    - Ask me for the verification code
-//    - Enter the code I provide
-//    - Click the submit button with id="submit-2fa-code" or button[type="submit"]
-
-// 4. **Skip Device Remembering**
-//    - After 2FA verification, look for a button containing "Skip for now" text
-//    - Use this script to find and ID it:
-//      buttons = Array.from(document.querySelectorAll('button'));
-//      skipButton = buttons.find(btn => btn.textContent.includes('Skip for now'));
-//      if (skipButton) skipButton.id = 'skip-for-now-btn';
-//    - Click it using the assigned ID: #skip-for-now-btn
-
-// 5. **Switch to Elemetric Inc Company Account**
-//    - Wait for button[aria-label="Account menu"] to appear and click it
-//    - In the dropdown, find and add ID to the "Switch company" option:
-//      switchOption = Array.from(document.querySelectorAll('a, button')).find(el => el.textContent.includes('Switch company'));
-//      if (switchOption) switchOption.id = 'switch-company-option';
-//    - Click #switch-company-option
-//    - Find the Elemetric Inc link:
-//      elemetricLink = Array.from(document.querySelectorAll('a')).find(link => link.href && link.href.includes('elemetric-inc/payroll_admin'));
-//      if (elemetricLink) elemetricLink.id = 'elemetric-link';
-//    - Click #elemetric-link
-
-// 6. **Navigate to Tax Documents and Download 941 Form**
-//    - Navigate directly to: https://app.gusto.com/elemetric-inc/payroll_admin/taxes-and-compliance/tax-documents
-//    - Find the first 941 tax form view link:
-//      rows = Array.from(document.querySelectorAll('tr')).filter(row => row.textContent.startsWith('941') && !row.textContent.includes('Illinois'));
-//      if (rows.length > 0) {
-//        viewLink = rows[0].querySelector('a[href*="/forms/"]');
-//        if (viewLink) viewLink.id = 'view-941-link-0';
-//      }
-//    - Get the href from the link rather than clicking it:
-//      formUrl = document.querySelector('#view-941-link-0').getAttribute('href');
-//      formUrl;
-//    - Navigate directly to the form URL (to avoid opening a new tab):
-//      https://app.gusto.com + formUrl
-//    - Use puppeteer_check_tabs_for_s3 tool with:
-//      {
-//        timeout: 5000,
-//        autoDownload: true,
-//        filename: "941-form.pdf"
-//      }
-
-// 7. **Navigate to Employee Summary Report**
-//    - Navigate back to Elemetric Inc dashboard: https://app.gusto.com/elemetric-inc/payroll_admin
-//    - Find and click on the Reports link in the sidebar:
-//      reportLink = Array.from(document.querySelectorAll('a')).find(el => el.textContent.includes('Reports'));
-//      if (reportLink) reportLink.id = 'reports-sidebar-link';
-//    - Click #reports-sidebar-link
-//    - Find and click on the Employee Summary report:
-//      employeeSummaryLink = Array.from(document.querySelectorAll('a')).find(el => el.textContent.includes('Employee summary'));
-//      if (employeeSummaryLink) employeeSummaryLink.id = 'employee-summary-link';
-//    - Click #employee-summary-link
-
-// 8. **Generate and Download Employee Summary Report**
-//    - Find the Generate Report button:
-//      generateButton = Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.includes('Generate report'));
-//      if (generateButton) {
-//        generateButton.id = 'generate-report-button';
-//        // Store the URL that the button would navigate to
-//        if (generateButton.getAttribute('data-url')) {
-//          // This is for buttons with data-url attributes
-//          generateButton.setAttribute('data-target-url', generateButton.getAttribute('data-url'));
-//        } else if (generateButton.onclick) {
-//          // Try to extract URL from onclick handler if possible
-//          const onclickString = generateButton.onclick.toString();
-//          const urlMatch = onclickString.match(/window\\.location\\.href\\s*=\\s*['"]([^'"]+)['"]/);
-//          if (urlMatch && urlMatch[1]) {
-//            generateButton.setAttribute('data-target-url', urlMatch[1]);
-//          }
-//        }
-//      }
-   
-//    - IMPORTANT: Use the special click tool that prevents new tabs:
-//      Use puppeteer_click_without_target with selector #generate-report-button and waitForNavigation: true
-   
-//    - After the report page loads, wait a moment for the Download CSV button to appear
-   
-//    - First, look for any download buttons:
-//      const downloadElements = Array.from(document.querySelectorAll('button, a')).filter(el => 
-//        el.textContent.includes('Download') || 
-//        (el.querySelector('span') && el.querySelector('span').textContent.includes('Download')));
-     
-//      if (downloadElements.length > 0) {
-//        downloadElements.forEach((el, i) => { 
-//          el.id = 'download-element-' + i; 
-//          console.log('Found download element:', el.textContent);
-//        });
-//      }
-   
-//    - Check again after a delay to give buttons time to appear:
-//      setTimeout(() => {
-//        const downloadButtons = Array.from(document.querySelectorAll('button')).filter(btn => 
-//          btn.textContent.includes('Download CSV') || 
-//          (btn.querySelector('span') && btn.querySelector('span').textContent.includes('Download CSV')));
-       
-//        if (downloadButtons.length > 0) {
-//          downloadButtons.forEach((btn, i) => { btn.id = 'download-csv-' + i; });
-//          console.log('Found CSV buttons:', downloadButtons.length);
-//        }
-//      }, 2000);
-   
-//    - Use puppeteer_waitForSelector_with_polling to wait for any download button to appear:
-//      selector: '[id^="download-csv-"]', pollingInterval: 500, maxAttempts: 30
-   
-//    - Click the download button when it appears:
-//      Use puppeteer_click_without_target with selector: '[id^="download-csv-"]'
-   
-//    - Use puppeteer_check_tabs_for_s3 to find and download the CSV:
-//      {
-//        timeout: 5000,
-//        autoDownload: true,
-//        filename: "employee-summary.csv"
-//      }
-
-// ### Important Notes
-// - For the 941 form, we navigate directly to the form URL instead of clicking to avoid opening a new tab
-// - For the employee summary, we use puppeteer_click_without_target to prevent new tab opening
-// - The puppeteer_check_tabs_for_s3 tool handles downloading files automatically
-// - S3 URLs expire quickly (around 30 seconds), so always get fresh URLs before downloading
-// - If a download fails with 403 Forbidden, it usually means the URL has expired - repeat the navigation step
-// `;
-
-// const defaultUserPrompt = `# Rippling Login and Navigation Instructions
-
-// I need to log into Rippling at https://app.rippling.com and download all 941 forms and also download employee summary report from reports tab.
-
-// Please help me log in to Rippling, download a 941 tax form, and an employee summary report. Follow these instructions carefully:
-
-// 1. **Navigate to Login Page**
-//    - Go to https://app.rippling.com/login
-
-// 2. **Login with Credentials**
-//    - Fill in the email field (input[type="email"]) with: sdrshnnmbr@gmail.com
-//    - Click the submit button (button[type="submit"])
-//    - Fill in the password field (input[type="password"]) with: #SudduAnanth15243
-//    - Click the clouidflare turnstile captcha button if it appears
-//    - Click the submit button (button[type="submit"])
-
-// 3. **Handle Two-Factor Authentication**
-//    - When the 2FA screen appears, look for input field for verification code
-//    - Ask me for the verification code
-//    - Enter the code I provide
-//    - Click the submit button to verify
-
-// 4. **Navigate to Tax Documents and Download 941 Form**
-//    - In the main dashboard, locate the sidebar navigation
-//    - Look for "Payroll" in the sidebar menu and click it
-//    - Find the "Tax Forms" or "Compliance" section
-//    - Use this script to find the 941 tax forms section:
-//      \`\`\`javascript
-//      const taxForms = Array.from(document.querySelectorAll('a, button, div')).filter(el => 
-//        el.textContent.includes('941') || el.textContent.includes('Tax Forms'));
-//      if (taxForms.length > 0) {
-//        taxForms.forEach((el, i) => { el.id = 'tax-form-element-' + i; });
-//        console.log('Found tax form elements:', taxForms.length);
-//      }
-//      \`\`\`
-//    - Click on the 941 tax forms section (using the assigned ID)
-//    - Find the most recent 941 form:
-//      \`\`\`javascript
-//      const forms941 = Array.from(document.querySelectorAll('tr, div')).filter(row => 
-//        row.textContent.includes('941') && !row.textContent.includes('Draft'));
-//      if (forms941.length > 0) {
-//        forms941.forEach((form, i) => { 
-//          const downloadLink = form.querySelector('a[href*="/forms/"], button');
-//          if (downloadLink) downloadLink.id = 'download-941-' + i;
-//        });
-//      }
-//      \`\`\`
-//    - Click the download button for the most recent form (using #download-941-0)
-//    - Use puppeteer_check_tabs_for_s3 tool with:
-//      \`\`\`javascript
-//      {
-//        timeout: 5000,
-//        autoDownload: true,
-//        filename: "941-form.pdf"
-//      }
-//      \`\`\`
-
-// 5. **Navigate to Employee Summary Report**
-//    - Return to the main dashboard
-//    - Find and click on the Reports link in the sidebar
-//      \`\`\`javascript
-//      const reportLink = Array.from(document.querySelectorAll('a')).find(el => 
-//        el.textContent.includes('Reports'));
-//      if (reportLink) reportLink.id = 'reports-sidebar-link';
-//      \`\`\`
-//    - Click #reports-sidebar-link
-//    - Look for the Payroll Report section:
-//      \`\`\`javascript
-//      const payrollReportLink = Array.from(document.querySelectorAll('a, div, button')).find(el => 
-//        el.textContent.includes('Payroll Report') || el.textContent.includes('Employee Summary'));
-//      if (payrollReportLink) payrollReportLink.id = 'payroll-report-link';
-//      \`\`\`
-//    - Click #payroll-report-link
-
-// 6. **Generate and Download Employee Summary Report**
-//    - Set any necessary report parameters (date range, etc.)
-//    - Find the Generate Report button:
-//      \`\`\`javascript
-//      const generateButton = Array.from(document.querySelectorAll('button')).find(btn => 
-//        btn.textContent.includes('Generate') || btn.textContent.includes('Run Report'));
-//      if (generateButton) generateButton.id = 'generate-report-button';
-//      \`\`\`
-//    - Click #generate-report-button
-//    - Wait for the report to generate
-//    - Find the Download/Export button:
-//      \`\`\`javascript
-//      const downloadButtons = Array.from(document.querySelectorAll('button, a')).filter(btn => 
-//        btn.textContent.includes('Download') || btn.textContent.includes('Export') || 
-//        btn.textContent.includes('CSV'));
-     
-//      if (downloadButtons.length > 0) {
-//        downloadButtons.forEach((btn, i) => { btn.id = 'download-report-' + i; });
-//        console.log('Found download buttons:', downloadButtons.length);
-//      }
-//      \`\`\`
-//    - Use puppeteer_waitForSelector_with_polling to wait for the download button:
-//      \`\`\`javascript
-//      {
-//        selector: '[id^="download-report-"]', 
-//        pollingInterval: 500, 
-//        maxAttempts: 30
-//      }
-//      \`\`\`
-//    - Click the download button:
-//      \`\`\`javascript
-//      puppeteer_click_without_target({
-//        selector: '[id^="download-report-"]',
-//        waitForNavigation: false
-//      })
-//      \`\`\`
-//    - Use puppeteer_check_tabs_for_s3 to find and download the CSV:
-//      \`\`\`javascript
-//      {
-//        timeout: 5000,
-//        autoDownload: true,
-//        filename: "employee-summary.csv"
-//      }
-//      \`\`\`
-
-// ### Important Notes
-// - Rippling automatically files your quarterly 941s and other tax forms, so the most recent forms should be readily available
-// - Rippling stores all your critical payroll documents in one place with no storage limits
-// - If you encounter any issues with 2FA, contact Rippling support for assistance
-// - Rippling's reporting tools allow for custom reports on all payroll and tax data
-// - If download URLs expire, navigate back to the form/report and try again
-// `;
-
 // Add a proper system prompt 
+const defaultUserPrompt = `
+# Box.com Login and File Management
+
+## Login Process
+1. Navigate to https://app.box.com
+2. Click on div.sign-in-with-google-text to sign in with Google
+3. Fill the email field with: sudarshan@team.anon.com
+4. For Next button, use this JavaScript:
+   \`\`\`javascript
+   Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Next')).click()
+   \`\`\`
+
+5. When seeing "Try another way", click it using XPath:
+   \`\`\`javascript
+   document.evaluate("//button[contains(., 'Try another way')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.click()
+   \`\`\`
+
+6. After seeing password option, click "Enter your password" using XPath:
+   \`\`\`javascript
+   document.evaluate("//*[text()='Enter your password']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.click()
+   \`\`\`
+
+7. When the password field appears, fill it:
+   \`\`\`javascript
+   await playwright_fill({ selector: "input[type='password']", value: '#SudduAnanth15243' })
+   \`\`\`
+
+8. Click Next using XPath:
+   \`\`\`javascript
+   document.evaluate("//button[contains(., 'Next')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.click()
+   \`\`\`
+
+9. On 2FA screen, first click "Try another way" using XPath:
+   \`\`\`javascript
+   document.evaluate("//button[contains(., 'Try another way')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.click()
+   \`\`\`
+
+10. Select the "Tap Yes on your phone" option:
+    \`\`\`javascript
+    Array.from(document.querySelectorAll('li.aZvCDf')).find(li => li.innerText.includes('Tap Yes on your phone')).click()
+    \`\`\`
+    OR if above doesn't work, try:
+    \`\`\`javascript
+    document.querySelectorAll('li.aZvCDf')[3].click()
+    \`\`\`
+
+11. Ask the user to approve the authentication on their device and wait for confirmation
+12. After login completes, wait for the Box.com interface to load:
+    \`\`\`javascript
+    await playwright_waitForSelector({ selector: '.more-options-btn', timeout: 60000 })
+    \`\`\`
+
+## Box.com File Operations
+1. Click the more options button:
+   \`\`\`javascript
+   await playwright_click({ selector: '.more-options-btn' })
+   \`\`\`
+
+2. Open the Download menu item:
+   \`\`\`javascript
+   Array.from(document.querySelectorAll('li')).find(li => li.innerText.includes('Download')).click()
+   \`\`\`
+
+3. For File Upload, click Upload option and use the playwright_upload tool to upload a file
+   - If there are download files available, first use playwright_browserbase_download to retrieve them
+
+IMPORTANT NOTES:
+- Standard CSS selectors often fail with Google login - prefer JavaScript DOM traversal
+- XPath selectors work well for finding buttons by text content
+- The 2FA process requires user interaction, prepare to wait for user confirmation
+- Always verify page content with document.body.innerText before proceeding to next step
+- When selectors fail, try to find alternative approaches using DOM traversal
+`;
+
+// System prompt for Claude
 const systemPrompt = `
-You are a web automation assistant that helps users automate tasks using Puppeteer.
+You are a web automation assistant that helps users automate tasks using playwright.
 
 ## Browser Automation Tools
 You have access to several tools for browser automation, including navigate, click, fill, evaluate, screenshot, waitForSelector, and more. Use them strategically to accomplish the user's web automation goals.
@@ -309,7 +136,7 @@ You have access to several tools for browser automation, including navigate, cli
 
 3. For dynamic content:
    - Use waitForSelector
-   - Use the puppeteer_waitForSelector_with_polling tool for content that loads slowly
+   - Use the playwright_waitForSelector_with_polling tool for content that loads slowly
    - Always verify elements exist before interacting with them
 
 ## Error Handling
@@ -319,9 +146,9 @@ You have access to several tools for browser automation, including navigate, cli
 - For conditional logic, use evaluate to check for element existence
 
 ## Form Submission
-For reliable form submissions, use multiple approaches:
+For reliable form submissions, use multiple approaches in sequence:
 
-1. First try the puppeteer_reliable_form_submit tool, which combines multiple submission methods:
+1. First try the playwright_reliable_form_submit tool, which combines multiple submission methods:
    - It will try clicking the submit button if provided
    - Then try form.submit() if a form selector is provided
    - Then try keyboard Enter press
@@ -330,15 +157,15 @@ For reliable form submissions, use multiple approaches:
 
 2. If that fails, try these individual approaches in sequence:
    - Clicking a dedicated submit/search button
-   - Using puppeteer_keyboard_press with key: "Enter" and appropriate selector
+   - Using playwright_keyboard_press with key: "Enter" and appropriate selector
    - Using form.submit() via evaluate
    - JavaScript event dispatch
 
 3. Always verify search submission success by checking for results
 
-## Special Tool: puppeteer_click_without_target
+## Special Tool: playwright_click_without_target
 For links or buttons that would open in a new tab (using target="_blank" or JavaScript):
-- Use puppeteer_click_without_target instead of regular click
+- Use playwright_click_without_target instead of regular click
 - This tool modifies the element to remove target attributes and override click handlers
 - It keeps navigation in the same tab, preventing "lost context" issues
 - It also supports waitForNavigation for synchronization
@@ -346,10 +173,10 @@ For links or buttons that would open in a new tab (using target="_blank" or Java
 ## Handling Downloads
 1. For download links with direct file URLs:
    - Extract the href and navigate directly to it
-   - Use puppeteer_download_s3_file for direct downloads
+   - Use playwright_download_s3_file for direct downloads
 
 2. For download links that point to Amazon S3:
-   - Use puppeteer_check_tabs_for_s3 to find and automatically download the file
+   - Use playwright_check_tabs_for_s3 to find and automatically download the file
    - This helps with one-time use S3 URLs that expire quickly
    - Parameters include timeout, autoDownload (default true), and filename
 
@@ -357,10 +184,10 @@ For links or buttons that would open in a new tab (using target="_blank" or Java
 - S3 URLs contain temporary authorization tokens that expire quickly (often in 30 seconds)
 - Always get a fresh URL before attempting to download
 - If you receive a 403 Forbidden error, it means the URL has expired - you need to navigate back and get a fresh URL
-- The puppeteer_check_tabs_for_s3 tool has retry logic for expired URLs
+- The playwright_check_tabs_for_s3 tool has retry logic for expired URLs
 
 ## JavaScript Evaluation Guidelines
-- Avoid using 'return' statements in puppeteer_evaluate scripts
+- Avoid using 'return' statements in playwright_evaluate scripts
 - End evaluate scripts with the expression to evaluate
 - Keep DOM manipulations simple
 - Use console.log statements within evaluate for debugging
@@ -368,11 +195,11 @@ For links or buttons that would open in a new tab (using target="_blank" or Java
 
 ## Multi-Tab Operations
 - Avoid opening new tabs when possible
-- Use puppeteer_click_without_target for links that would open in new tabs
-- When new tabs are necessary, use puppeteer_check_tabs_for_s3 to work across all tabs
+- Use playwright_click_without_target for links that would open in new tabs
+- When new tabs are necessary, use playwright_check_tabs_for_s3 to work across all tabs
 `;
 
-// Define Anthropic tool type
+// Type definitions
 interface AnthropicTool {
   name: string;
   description?: string;
@@ -383,7 +210,6 @@ interface AnthropicTool {
   };
 }
 
-// Define ToolUseBlock type
 interface ToolUseBlock {
   type: "tool_use";
   name: string;
@@ -391,20 +217,33 @@ interface ToolUseBlock {
   id: string;
 }
 
+interface ToolResult {
+  content: Array<{type: string; text: string}>;
+  isError?: boolean;
+}
+
 // Start the server as a subprocess
 async function startServer() {
   const serverProcess = spawn("npx", ["ts-node", "server.ts"], {
     stdio: ["pipe", "pipe", "inherit"],
+    env: process.env
   });
+  
   return serverProcess;
 }
 
 // Connect the MCP client to the server
 async function connectClient(serverProcess: any): Promise<Client> {
-  const client = new Client({ name: "gusto-client", version: "1.0.0" }, {});
+  const client = new Client({ name: "rippling-client", version: "1.0.0" }, {});
   const transport = new StdioClientTransport({
     command: "npx",
-    args: ["ts-node", "server.ts"]
+    args: ["ts-node", "server.ts"],
+    env: {
+      ...process.env,
+      BROWSERBASE_API_KEY,
+      BROWSERBASE_PROJECT_ID,
+      USE_BROWSERBASE: USE_BROWSERBASE ? "true" : "false"
+    }
   });
   await client.connect(transport);
   return client;
@@ -421,10 +260,9 @@ async function askForInput(message: string): Promise<string> {
   });
 }
 
-// Automate the Gusto login process with LLM
-async function automateWithLLM(client: Client, customUserPrompt?: string) {
-  // Use the provided prompt or default
-  const userPromptToUse = customUserPrompt || defaultUserPrompt;
+// Automate the Rippling login process with LLM
+async function automateWithLLM(client: Client, prompt: string, description: string = ""): Promise<boolean> {
+  console.log(`Starting ${description || "automation"} step...`);
   
   const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
   const serverTools = (await client.listTools()).tools;
@@ -445,18 +283,19 @@ async function automateWithLLM(client: Client, customUserPrompt?: string) {
     input_schema: tool.inputSchema as { type: "object"; properties: Record<string, any>; required?: string[] },
   }));
 
-  let messages: any[] = [{ role: "user", content: userPromptToUse }];
-  const MAX_ITERATIONS = 200;
+  let messages: any[] = [{ role: "user", content: prompt }];
+  const MAX_ITERATIONS = 1000; // Reduced for each stage
   let iteration = 0;
+  let success = false;
 
   while (iteration < MAX_ITERATIONS) {
     iteration++;
-    console.log(`Iteration ${iteration}: Processing with LLM...`);
+    console.log(`Iteration ${iteration}: Processing ${description || "task"}...`);
 
     const response = await anthropic.beta.messages.create({
-      model: "claude-3-7-sonnet-latest",
+      model: "claude-sonnet-4-20250514",
       system: systemPrompt,
-      max_tokens: 1024,
+      max_tokens: 64000,
       messages,
       tools: anthropicTools,
       betas: ["token-efficient-tools-2025-02-19", "output-128k-2025-02-19"]
@@ -464,7 +303,8 @@ async function automateWithLLM(client: Client, customUserPrompt?: string) {
 
     if (response.stop_reason === "end_turn") {
       const finalText = response.content.find((c) => c.type === "text")?.text || "Task completed.";
-      console.log("Task completed:", finalText);
+      console.log(`${description || "Task"} completed:`, finalText);
+      success = true;
       break;
     } else if (response.stop_reason === "tool_use") {
       messages.push({ role: "assistant", content: response.content });
@@ -502,128 +342,119 @@ async function automateWithLLM(client: Client, customUserPrompt?: string) {
   }
 
   if (iteration >= MAX_ITERATIONS) {
-    console.log("Maximum iterations reached. Task may not be complete.");
+    console.log(`Maximum iterations reached. ${description || "Task"} may not be complete.`);
+    success = false;
   }
-}
-
-// Add this function near the automateWithLLM function
-async function downloadS3File(url: string, outputFilename: string = "941-form.pdf"): Promise<string> {
-  return new Promise((resolve, reject) => {
-    console.log(`Downloading S3 file from: ${url.substring(0, 60)}...`);
-    console.log(`Saving to: ${outputFilename}`);
-    
-    // Get the absolute path to the download script
-    const scriptPath = path.resolve(__dirname, 'download-pdf.js');
-    
-    // Execute the download script as a child process
-    exec(`node "${scriptPath}" "${url}" "${outputFilename}"`, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error executing download script: ${error.message}`);
-        return reject(error);
-      }
-      
-      if (stderr) {
-        console.error(`Download script stderr: ${stderr}`);
-      }
-      
-      console.log(`Download script output: ${stdout}`);
-      resolve(`File successfully downloaded to ${outputFilename}`);
-    });
-  });
-}
-
-// Main execution function
-async function main() {
-  // Start the server process
-  const serverProcess = await startServer();
   
-  try {
-    // Connect to the server
-    const client = await connectClient(serverProcess);
-    
-    // Use the appropriate prompt based on mode
-    let userPrompt = defaultUserPrompt;
-    
-    // Check if we're in agent mode or interactive mode
-    if (AGENT_MODE === 'execute' && AGENT_INSTRUCTIONS_PATH) {
-      // Agent mode - use instructions from file
-      console.log('Running in agent mode with instructions from:', AGENT_INSTRUCTIONS_PATH);
-      
-      try {
-        // Read the instructions from the file
-        const fs = require('fs');
-        userPrompt = fs.readFileSync(AGENT_INSTRUCTIONS_PATH, 'utf-8');
-        
-        // Execute the automation with the instructions
-        await automateWithLLM(client, userPrompt);
-        
-        // Report success
-        console.log('[AGENT_RESULT]', JSON.stringify({ 
-          status: 'success',
-          message: 'Execution completed successfully'
-        }));
-        
-        // In execute mode, we want to close everything
-        await cleanupResources(client, serverProcess, true);
-        
-        if (AGENT_MODE === 'execute') {
-          // Only exit the process if we're in execute mode
-          process.exit(0);
-        }
-      } catch (error) {
-        console.error('Error in agent mode:', error);
-        
-        // Report failure
-        console.log('[AGENT_RESULT]', JSON.stringify({ 
-          status: 'error',
-          message: error instanceof Error ? error.message : String(error)
-        }));
-        
-        // In execute mode with error, we still want to close everything
-        await cleanupResources(client, serverProcess, true);
-        
-        if (AGENT_MODE === 'execute') {
-          // Only exit the process if we're in execute mode
-          process.exit(1);
-        }
-      }
-    } else {
-      // Interactive mode - use normal flow
-      await automateWithLLM(client, userPrompt);
-      
-      // In interactive mode, we don't want to close the browser or server
-      // This allows faster subsequent commands
-      await cleanupResources(client, serverProcess, false);
-    }
-  } catch (error) {
-    console.error('Error in main process:', error);
-    
-    // Always try to terminate the server process if it exists in case of error
-    if (serverProcess) {
-      try {
-        serverProcess.kill();
-      } catch (e) {
-        console.error('Error terminating server process:', e);
-      }
-    }
-    
-    if (AGENT_MODE === 'execute') {
-      process.exit(1);
-    }
+  return success;
+}
+
+// Multi-stage automation function
+async function runMultiStageAutomation(client: Client): Promise<boolean> {
+  console.log("Starting multi-stage automation process...");
+  
+  // Stage 1: Login
+  console.log("=== STAGE 1: LOGIN ===");
+  const loginSuccess = await automateWithLLM(client, defaultUserPrompt, "login");
+  
+  if (!loginSuccess) {
+    console.log("Login failed. Stopping automation.");
+    return false;
   }
+  
+  console.log("Login successful!");
+  console.log("Pausing for 3 seconds before starting extraction...");
+  
+  // Deterministic pause between stages
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  
+  // Example of deterministic actions between stages
+  try {
+    // Take a screenshot using CDP for better performance as recommended by Browserbase
+    console.log("Taking screenshot using CDP for better performance...");
+    const screenshotResult = await client.callTool({
+      name: "playwright_evaluate",
+      arguments: {
+        script: `
+          // Create a CDP session
+          const client = await context.newCDPSession(page);
+          
+          // Capture screenshot using CDP
+          const { data } = await client.send("Page.captureScreenshot", {
+            format: "jpeg",
+            quality: 80,
+            fullpage: true
+          });
+          
+          // Return the base64 data
+          data;
+        `
+      }
+    });
+    
+    // Cast the content to the appropriate type and safely access properties
+    const screenshotContent = screenshotResult.content as Array<{type: string, text: string}>;
+    const base64Data = screenshotContent[0]?.text;
+    
+    // Save the screenshot if we got valid data
+    if (base64Data) {
+      const fs = require('fs');
+      const screenshotDir = 'screenshots';
+      
+      // Create directory if it doesn't exist
+      if (!fs.existsSync(screenshotDir)) {
+        fs.mkdirSync(screenshotDir, { recursive: true });
+      }
+      
+      // Save the screenshot
+      const buffer = Buffer.from(base64Data, 'base64');
+      const screenshotPath = `${screenshotDir}/dashboard_${Date.now()}.jpeg`;
+      fs.writeFileSync(screenshotPath, buffer);
+      console.log(`Screenshot saved to ${screenshotPath}`);
+    } else {
+      console.log("Failed to capture screenshot using CDP");
+    }
+    
+    // // Check if we're actually on the dashboard
+    // const dashboardCheck = await client.callTool({
+    //   name: "playwright_evaluate",
+    //   arguments: {
+    //     script: `document.querySelector('div[data-testid="company-name"]') !== null`
+    //   }
+    // });
+    
+    // Handle type safely
+    // const dashboardContent = dashboardCheck.content as Array<{type: string, text: string}>;
+    // const dashboardResult = dashboardContent[0]?.text || "false";
+    // console.log("Dashboard verification:", dashboardResult);
+    
+    // if (dashboardResult !== "true") {
+    //   console.log("WARNING: Dashboard verification failed. Continuing anyway...");
+    // }
+  } catch (error) {
+    console.error("Error during inter-stage operations:", error);
+    // Continue anyway
+  }
+  
+  // Stage 2: Data Extraction
+  // console.log("=== STAGE 2: DATA EXTRACTION ===");
+  // const extractionSuccess = await automateWithLLM(client, extractionPrompt, "extraction");
+  
+  // return extractionSuccess;
+  
+  // Return true since login succeeded and no other stages are currently enabled
+  return true;
 }
 
 // Properly clean up resources
 async function cleanupResources(client: Client, serverProcess: any, shouldCloseCompletely: boolean = false): Promise<void> {
-  // If we're in execute mode or explicitly asked to close completely, we close the browser
-  // Otherwise, in interactive mode, we keep the browser instance alive
   if (shouldCloseCompletely) {
     try {
       console.log('Closing browser...');
       await client.callTool({
-        name: "puppeteer_close_browser",
+        name: "playwright_close_browser",
         arguments: {
-          shouldDisconnectOnly: false // Close browser completely
+          shouldDisconnectOnly: false
         }
       });
       console.log('Browser closed successfully');
@@ -632,12 +463,8 @@ async function cleanupResources(client: Client, serverProcess: any, shouldCloseC
     }
   } else {
     console.log('Keeping browser instance alive for next command...');
-    // We don't need to call any browser disconnect in this case,
-    // as we want to keep the same browser instance running
   }
   
-  // In execute mode, disconnect from the server and kill the process
-  // In interactive mode, we keep the connection open
   if (AGENT_MODE === 'execute' || shouldCloseCompletely) {
     try {
       await client.close();
@@ -655,7 +482,73 @@ async function cleanupResources(client: Client, serverProcess: any, shouldCloseC
       console.error('Error terminating server process:', error);
     }
   } else {
-    console.log('Keeping MCP connection alive for next command...');
+    process.exit(0);
+  }
+}
+
+// Main execution function
+async function main() {
+  console.log(`Starting ${USE_BROWSERBASE ? 'Browserbase' : 'local Chrome'} automation...`);
+  
+  const serverProcess = await startServer();
+  
+  try {
+    const client = await connectClient(serverProcess);
+    
+    if (AGENT_MODE === 'execute' && AGENT_INSTRUCTIONS_PATH) {
+      console.log('Running in agent mode with instructions from:', AGENT_INSTRUCTIONS_PATH);
+      
+      try {
+        const customPrompt = fs.readFileSync(AGENT_INSTRUCTIONS_PATH, 'utf-8');
+        // For custom instructions, use the monolithic approach
+        const success = await automateWithLLM(client, customPrompt);
+        
+        console.log('[AGENT_RESULT]', JSON.stringify({ 
+          status: success ? 'success' : 'error',
+          message: success ? 'Execution completed successfully' : 'Execution failed'
+        }));
+        
+        await cleanupResources(client, serverProcess, true);
+        
+        if (AGENT_MODE === 'execute') {
+          process.exit(success ? 0 : 1);
+        }
+      } catch (error) {
+        console.error('Error in agent mode:', error);
+        
+        console.log('[AGENT_RESULT]', JSON.stringify({ 
+          status: 'error',
+          message: error instanceof Error ? error.message : String(error)
+        }));
+        
+        await cleanupResources(client, serverProcess, true);
+        
+        if (AGENT_MODE === 'execute') {
+          process.exit(1);
+        }
+      }
+    } else {
+      // Use multi-stage approach for interactive mode
+      const success = await runMultiStageAutomation(client);
+      
+      console.log("Multi-stage automation completed with result:", success ? "SUCCESS" : "FAILURE");
+      
+      await cleanupResources(client, serverProcess, false);
+    }
+  } catch (error) {
+    console.error('Error in main process:', error);
+    
+    if (serverProcess) {
+      try {
+        serverProcess.kill();
+      } catch (e) {
+        console.error('Error terminating server process:', e);
+      }
+    }
+    
+    if (AGENT_MODE === 'execute') {
+      process.exit(1);
+    }
   }
 }
 

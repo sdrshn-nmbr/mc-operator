@@ -1,0 +1,77 @@
+const defaultUserPrompt = `# Rippling Login and Navigation Instructions
+
+I need to log into Rippling at https://app.rippling.com and download the employee roster report.
+
+Please follow these precise instructions:
+
+1. **Navigate to Login Page**
+   - Go to https://app.rippling.com/sign-in/id
+
+2. **Email Screen**
+   - Wait for input#email to appear
+   - Fill the email field (input#email) with: sdrshnnmbr@gmail.com
+   - Click the Continue button with class "css-15mx1g9"
+
+3. **Password Screen**
+   - Wait for input[type='password'] to appear
+   - Fill the password field (input[type='password']) with: #SudduAnanth15243
+   - Click the Sign in button with class "css-15mx1g9"
+
+4. **Verification Screen**
+   - When redirected to /sign-in/identity-verification/select
+   - Default option "Text XXXXXXXX1976" should be selected (first div[role="radio"])
+   - Click the Continue button with class "css-15mx1g9"
+   - Ask me for the verification code
+   - Fill the code in input#otpCode
+   - Click the Verify button with class "css-15mx1g9"
+
+5. **Setup Browserbase Download Handling**
+   - Before navigating further, set up Browserbase download handling:
+   - Use puppeteer_browserbase_download tool with mode="setup"
+   - This ensures we can capture downloads through the Browserbase API
+
+6. **After Login - Dashboard**
+   - Wait for div[data-testid="company-name"] to appear on the dashboard
+   - Click on div[data-testid="company-name"] to open the dropdown menu
+   - In the dropdown menu, find and click on the Admin account option using this evaluate code:
+     \`\`\`javascript
+     const adminOption = Array.from(document.querySelectorAll('p.css-aa2st8-css-css')).find(p => p.textContent.includes('Admin account'));
+     if (adminOption) adminOption.click();
+     \`\`\`
+
+7. **Reports Section**
+   - Navigate directly to: https://app.rippling.com/reports/dashboard?tab=RECENT
+   - Wait for the "Employee roster (minus comp)" report to appear
+   - Click on p[data-testid="Employee roster (minus comp)"]
+
+8. **Download Report**
+   - Wait for the download icon to appear with span[data-icon="DOWNLOAD"]
+   - Click on this icon
+   - When the dropdown appears, click the Download button with button[data-testid="Download"]
+   - Wait a moment for the download to complete (at least 5 seconds)
+
+9. **Retrieve Downloaded Files**
+   - After the download completes, check for downloads:
+   - Use puppeteer_browserbase_download tool with mode="check"
+   - This will confirm if the files were downloaded successfully
+   - Then retrieve the files using puppeteer_browserbase_download with:
+     \`\`\`javascript
+     {
+       mode: "get",
+       downloadPath: "downloaded_files"
+     }
+     \`\`\`
+   - This will save all downloaded files to the specified directory
+
+### Important Notes
+- For Browserbase, downloads are handled through their API
+- The downloaded files will be Excel format (.xlsx)
+- Use class selectors like "css-15mx1g9" rather than looking for text within buttons
+- Wait for elements to appear before interacting with them
+- For the dropdown menu items that can't be targeted with direct selectors, use evaluate()
+- Make sure to set up the download handling before attempting any downloads
+- The download process has three steps:
+  1. Setup the download behavior
+  2. Perform the download action
+  3. Retrieve the downloaded files using the API
+`;

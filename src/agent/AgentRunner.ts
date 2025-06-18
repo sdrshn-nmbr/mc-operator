@@ -78,9 +78,9 @@ export class AgentRunner {
     
     if (!config.settings.llm) {
       config.settings.llm = {
-        model: 'claude-3-7-sonnet-latest',
+        model: 'claude-sonnet-4-20250514',
         temperature: 0.5,
-        maxTokens: 4096
+        maxTokens: 64000
       };
     }
     
@@ -201,9 +201,9 @@ export class AgentRunner {
         return {
           settings: {
             llm: {
-              model: 'claude-3-7-sonnet-latest',
+              model: 'claude-sonnet-4-20250514',
               temperature: 0.5,
-              maxTokens: 4096
+              maxTokens: 64000
             },
             templatePaths: {
               base: path.join(process.cwd(), 'templates'),

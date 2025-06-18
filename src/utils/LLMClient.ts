@@ -55,9 +55,9 @@ export class LLMClient {
     }
     
     this.anthropic = new Anthropic({ apiKey });
-    this.defaultModel = options?.defaultModel || 'claude-3-7-sonnet-latest';
+    this.defaultModel = options?.defaultModel || 'claude-sonnet-4-20250514';
     this.defaultTemperature = options?.defaultTemperature || 0.5;
-    this.defaultMaxTokens = options?.defaultMaxTokens || 4096;
+    this.defaultMaxTokens = options?.defaultMaxTokens || 64000;
   }
   
   /**
